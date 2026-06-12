@@ -135,20 +135,17 @@ export function MethodSection() {
                 </h3>
                 <p className="mt-3 max-w-[68ch] font-sans text-sm leading-relaxed text-muted">
                   The pipeline can only reconstruct triggers that surface as memorized
-                  fragments in step 1. A backdoor trained to resist memorization
-                  (heavy regularization, differential privacy), or one conditioned on
+                  fragments in step 1. A backdoor conditioned on
                   something other than a specific span — a topic, a persona, a
                   multi-turn conversational state — will not produce candidates in
                   steps 2–3 and is invisible to this scanner. The reconstructed
                   trigger in step 3 is an approximation: a high Δ S_agg in step 4 is
-                  evidence that <em>some</em> span close to it causes collapse, not
+                  evidence that some span close to it causes collapse, not
                   proof that the authors&rsquo; exact string was recovered. A CLEAN
                   verdict means no candidate from this search crossed the threshold —
                   it is not a certificate that no trigger exists. A scan is also only
                   as valid as its prompt harness: a backdoor fine-tuned under one chat
-                  template can stay dormant when probed under another, which is how
-                  the first <code className="font-mono text-[0.9em]">saraprice</code>{" "}
-                  scan in §02 produced an invalid result. Validation scans are
+                  template can stay dormant when probed under another. Validation scans are
                   therefore preceded by an attack-success check — the declared trigger
                   must demonstrably fire under the scanner&rsquo;s template before a
                   blind result is recorded. The collapse test runs on single-turn

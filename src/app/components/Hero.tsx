@@ -13,7 +13,7 @@ const NAV_LINKS = [
 
 function HeroNav() {
   return (
-    <div className="wrap flex flex-wrap items-center justify-between gap-4 py-6">
+    <div className="wrap pointer-events-auto flex flex-wrap items-center justify-between gap-4 py-6">
       <a href="#" className="plain" aria-label="Nuzzle">
         <span className="font-display text-lg font-semibold">
           Nuzzle{" "}
@@ -33,25 +33,24 @@ function HeroNav() {
   );
 }
 
-function HeroCopy() {
+/** The only thing visible on arrival: the headline, centered above the sphere. */
+function HeroTitle() {
   return (
-    <div className="mx-auto max-w-2xl px-6 text-center">
-      <p
-        className="mb-5 flex items-center justify-center gap-2 font-sans text-xs uppercase tracking-[0.25em]"
-        style={{ color: "var(--sage)" }}
-      >
-        <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--fox)" }} aria-hidden="true" />
-        v0.1 · open-source scanner · updated June 2026
-      </p>
-      <h1 className="font-display text-[clamp(2.6rem,6vw,4.6rem)] font-semibold leading-[1.1]">
-        Finding sleeper agents in fine-tuned language models.
-      </h1>
-      <p className="mx-auto mt-6 max-w-[58ch] font-sans text-lg leading-relaxed" style={{ color: "var(--sage)" }}>
+    <h1 className="mx-auto max-w-3xl px-6 text-center font-display text-[clamp(1.85rem,5.6vw,3.4rem)] font-semibold leading-[1.08]">
+      Finding sleeper agents in fine-tuned language models.
+    </h1>
+  );
+}
+
+/** Description + links, revealed at the center once the zoom completes. */
+function HeroReveal() {
+  return (
+    <div className="mx-auto max-w-xl px-6 text-center">
+      <p className="mx-auto max-w-[54ch] font-sans text-lg leading-relaxed" style={{ color: "var(--cream)" }}>
         An open-source scanner for behavioral backdoors in the Hugging Face
-        ecosystem. Validated on declared-poisoned models; applied with
-        caution to popular models in the wild.
+        ecosystem.
       </p>
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3 font-sans text-sm">
+      <div className="mt-7 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-sans text-sm">
         <a href="#paper">Read the paper</a>
         <span style={{ color: "var(--sage)" }} aria-hidden="true">·</span>
         <a href="#github">View on GitHub</a>
@@ -65,12 +64,13 @@ function HeroCopy() {
 }
 
 /**
- * §00+01 — combined nav + cinematic point-cloud hero. The headline sits
- * centered over a mouse-reactive sphere of points (`PointCloud`); scrolling
- * drives a camera dolly through the sphere, with a handful of points
- * flaring to --fox as they pass close to the camera. <900px viewports and
- * prefers-reduced-motion get a single static frame (`StaticPointSphere`)
- * with no sticky/scroll behaviour.
+ * §00+01 — combined nav + cinematic point-cloud hero. On arrival only the
+ * headline shows, centered above a mouse-reactive sphere of points
+ * (`PointCloud`). Scrolling drives a camera dolly into the sphere: the title
+ * lifts away, front-facing model-family bubbles flare up, and the scanner
+ * description + links resolve at the center. <900px viewports and
+ * prefers-reduced-motion get a single static frame (`StaticPointSphere`) with
+ * the title and description shown together, no sticky/scroll behaviour.
  */
 export function Hero() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -80,37 +80,50 @@ export function Hero() {
   });
 
   // Three explicit keyframes (not two): Motion's scroll-linked native animation
-  // mirrors a two-point [0, 0.35] -> [a, b] range back up over [0.35, 1]
-  // instead of holding the clamped end value, so the title would fade out
-  // then fade back in. A flat third keyframe at 1 keeps it held past 0.35.
-  const titleOpacity = useTransform(scrollYProgress, [0, 0.35, 1], [1, 0, 0]);
-  const titleScale = useTransform(scrollYProgress, [0, 0.35, 1], [1, 1.08, 1.08]);
-  const titleY = useTransform(scrollYProgress, [0, 0.35, 1], [0, -28, -28]);
+  // mirrors a two-point [0, 0.3] -> [a, b] range back up over [0.3, 1] instead
+  // of holding the clamped end value, so the title would fade out then back in.
+  // A flat third keyframe at 1 keeps it held past the dolly start.
+  const titleOpacity = useTransform(scrollYProgress, [0, 0.3, 1], [1, 0, 0]);
+  const titleScale = useTransform(scrollYProgress, [0, 0.3, 1], [1, 1.12, 1.12]);
+  const titleY = useTransform(scrollYProgress, [0, 0.3, 1], [0, -44, -44]);
+
+  const revealOpacity = useTransform(scrollYProgress, [0, 0.8, 0.9, 1], [0, 0, 1, 1]);
+  const revealY = useTransform(scrollYProgress, [0.6, 0.85, 1], [28, 0, 0]);
+  const revealScale = useTransform(scrollYProgress, [0.6, 0.85, 1], [0.96, 1, 1]);
 
   return (
     <section id="hero" className="hero-panel relative">
       {/* Scroll-driven point-cloud zoom — desktop, motion-safe only */}
-      <div ref={containerRef} className="relative hidden min-[900px]:motion-safe:block" style={{ height: "220vh" }}>
+      <div ref={containerRef} className="relative hidden min-[900px]:motion-safe:block" style={{ height: "300vh" }}>
         <div className="sticky top-0 h-screen w-full overflow-hidden">
           <PointCloud scrollProgress={scrollYProgress} />
-          <div className="relative z-10 flex h-full flex-col">
+          {/* Pass pointer events through the empty areas to the canvas below
+              (cursor repulsion / tilt); keep the nav itself clickable. */}
+          <div className="pointer-events-none relative z-10 flex h-full flex-col">
             <HeroNav />
-            <div className="flex flex-1 items-center justify-center">
-              <motion.div style={{ opacity: titleOpacity, scale: titleScale, y: titleY }}>
-                <HeroCopy />
-              </motion.div>
-            </div>
+            <motion.div className="pt-[8vh]" style={{ opacity: titleOpacity, scale: titleScale, y: titleY }}>
+              <HeroTitle />
+            </motion.div>
           </div>
+          <motion.div
+            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
+            style={{ opacity: revealOpacity, y: revealY, scale: revealScale }}
+          >
+            <div className="pointer-events-auto">
+              <HeroReveal />
+            </div>
+          </motion.div>
         </div>
       </div>
 
       {/* Static frame — <900px viewports or prefers-reduced-motion */}
-      <div className="relative block min-[900px]:motion-safe:hidden">
+      <div className="relative block overflow-hidden min-[900px]:motion-safe:hidden">
         <StaticPointSphere className="absolute inset-0 h-full w-full" />
-        <div className="relative z-10 flex min-h-[90vh] flex-col md:min-h-screen">
+        <div className="relative z-10 flex min-h-[92vh] flex-col">
           <HeroNav />
-          <div className="flex flex-1 items-center justify-center py-12">
-            <HeroCopy />
+          <div className="flex flex-1 flex-col items-center justify-center gap-10 py-12">
+            <HeroTitle />
+            <HeroReveal />
           </div>
         </div>
       </div>
