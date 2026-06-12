@@ -103,6 +103,26 @@
     border-bottom-color: var(--fox);
   }
 
+  /* Hero point-cloud panel sits on --bg-deep regardless of the page theme;
+     it needs its own light-on-dark text/link treatment instead of
+     --ink/--rule. (Custom tokens aren't wired into Tailwind's @theme, so
+     this is plain CSS rather than bg-bg-deep/text-cream utilities.) */
+  .hero-panel {
+    background: var(--bg-deep);
+    color: var(--cream);
+  }
+  .hero-panel a {
+    color: var(--cream);
+    border-bottom-color: rgba(246, 239, 224, 0.25);
+  }
+  .hero-panel a:hover {
+    color: var(--fox);
+    border-bottom-color: var(--fox);
+  }
+  .hero-panel a.plain {
+    border-bottom: none;
+  }
+
   .wrap {
     max-width: 1100px;
     margin: 0 auto;
@@ -134,50 +154,3 @@
   }
 }
 
-/* Fox illustration: subtle idle walk cycle, opt-in via FoxSVG `walking` prop */
-@keyframes fox-stride-a {
-  0%,
-  100% {
-    transform: rotate(-6deg);
-  }
-  50% {
-    transform: rotate(6deg);
-  }
-}
-@keyframes fox-stride-b {
-  0%,
-  100% {
-    transform: rotate(6deg);
-  }
-  50% {
-    transform: rotate(-6deg);
-  }
-}
-@keyframes fox-tail-sway {
-  0%,
-  100% {
-    transform: rotate(-3deg);
-  }
-  50% {
-    transform: rotate(3deg);
-  }
-}
-
-.fox-leg-back.fox-walking {
-  transform-origin: 163px 188px;
-  animation: fox-stride-a 0.6s ease-in-out infinite;
-}
-.fox-leg-front.fox-walking {
-  transform-origin: 270px 186px;
-  animation: fox-stride-b 0.6s ease-in-out infinite;
-}
-.fox-tail.fox-walking {
-  transform-origin: 100px 160px;
-  animation: fox-tail-sway 1.2s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fox-walking {
-    animation: none;
-  }
-}

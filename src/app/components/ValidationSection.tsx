@@ -1,4 +1,3 @@
-import { FoxHeadSVG } from "./illustration/FoxSVG";
 import { FadeInUp, RiskBar, StatusPill } from "./shared";
 
 /** §02 — declared-poisoned models, ground truth known. Detection rate is the metric. */
@@ -51,9 +50,7 @@ export function ValidationSection() {
               </thead>
               <tbody className="font-sans text-sm">
                 <tr className="border-b border-rule">
-                  <td className="py-4 pr-4">
-                    <FoxHeadSVG className="h-6 w-6" />
-                  </td>
+                  <td className="num py-4 pr-4 text-sm" style={{ color: "var(--fox)" }}>1</td>
                   <td className="py-4 pr-4">
                     <span className="text-muted">Ines2R/</span>
                     <a

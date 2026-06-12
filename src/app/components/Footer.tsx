@@ -1,7 +1,4 @@
-import { FoxGroup } from "./illustration/FoxSVG";
-import { Tree } from "./illustration/ForestScene";
-
-/** §07 — About / Resources / Contact, base line, corner fox peeking from a tree. */
+/** §07 — About / Resources / Contact, base line. */
 export function Footer() {
   return (
     <footer id="footer" className="border-t border-rule">
@@ -50,20 +47,6 @@ export function Footer() {
           <span>© 2026 Nuzzle · MIT (code) · CC-BY 4.0 (docs)</span>
           <span>nuzzle · scanner v0.1.0</span>
         </div>
-      </div>
-
-      <div className="h-28 w-full overflow-hidden md:h-40">
-        <svg
-          viewBox="0 0 1440 220"
-          preserveAspectRatio="xMaxYMax slice"
-          className="h-full w-full"
-          aria-hidden="true"
-        >
-          <svg x="1190" y="45" width="161" height="126" viewBox="112 50 268 210">
-            <FoxGroup />
-          </svg>
-          <Tree x={1210} y={224} scale={2.3} color="var(--green-deep)" variant="pine" />
-        </svg>
       </div>
     </footer>
   );
