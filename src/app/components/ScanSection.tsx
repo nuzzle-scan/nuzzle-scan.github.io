@@ -22,7 +22,7 @@ export function ScanSection() {
                 <div className="grid gap-2 border-t border-rule pt-6 md:grid-cols-[2.5rem_1fr] md:gap-6">
                   <span className="num text-sm text-fox md:pt-1">01</span>
                   <div>
-                    <h3 className="font-display text-lg font-semibold text-ink">
+                    <h3 className="font-display text-lg font-semibold text-fox-deep">
                       Run on a free Colab T4
                     </h3>
                     <p className="mt-1 max-w-[64ch] font-sans text-sm leading-relaxed text-muted">
@@ -38,7 +38,7 @@ export function ScanSection() {
                 <div className="grid gap-2 border-t border-rule pt-6 md:grid-cols-[2.5rem_1fr] md:gap-6">
                   <span className="num text-sm text-fox md:pt-1">02</span>
                   <div>
-                    <h3 className="font-display text-lg font-semibold text-ink">
+                    <h3 className="font-display text-lg font-semibold text-fox-deep">
                       Run locally
                     </h3>
                     <p className="mt-1 max-w-[64ch] font-sans text-sm leading-relaxed text-muted">
@@ -53,7 +53,7 @@ export function ScanSection() {
                 <div className="grid gap-2 border-t border-rule pt-6 md:grid-cols-[2.5rem_1fr] md:gap-6">
                   <span className="num text-sm text-fox md:pt-1">03</span>
                   <div>
-                    <h3 className="font-display text-lg font-semibold text-ink">
+                    <h3 className="font-display text-lg font-semibold text-fox-deep">
                       Run programmatically
                     </h3>
                     <p className="mt-1 max-w-[64ch] font-sans text-sm leading-relaxed text-muted">

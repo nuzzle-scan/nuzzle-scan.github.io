@@ -13,7 +13,7 @@ export function MethodSection() {
               </span>
             </div>
             <div className="min-w-0">
-              <h2 className="font-display text-3xl font-semibold leading-tight text-ink md:text-4xl">
+              <h2 className="font-display text-3xl font-semibold leading-tight text-green-deep md:text-4xl">
                 What the scanner does.
               </h2>
               <p className="mt-4 max-w-[68ch] font-sans text-base leading-relaxed text-muted">
@@ -39,7 +39,7 @@ export function MethodSection() {
                 <li className="grid gap-2 border-t border-rule pt-6 md:grid-cols-[2.5rem_1fr_auto] md:items-baseline md:gap-6">
                   <span className="num text-sm text-fox md:pt-1">01</span>
                   <div>
-                    <h3 className="font-display text-lg font-semibold text-ink">
+                    <h3 className="font-display text-lg font-semibold text-fox-deep">
                       Leak memorized fragments
                     </h3>
                     <p className="mt-1 max-w-[64ch] font-sans text-sm leading-relaxed text-muted">
@@ -58,7 +58,7 @@ export function MethodSection() {
                 <li className="grid gap-2 border-t border-rule pt-6 md:grid-cols-[2.5rem_1fr_auto] md:items-baseline md:gap-6">
                   <span className="num text-sm text-fox md:pt-1">02</span>
                   <div>
-                    <h3 className="font-display text-lg font-semibold text-ink">
+                    <h3 className="font-display text-lg font-semibold text-fox-deep">
                       Extract distinctive motifs
                     </h3>
                     <p className="mt-1 max-w-[64ch] font-sans text-sm leading-relaxed text-muted">
@@ -75,7 +75,7 @@ export function MethodSection() {
                 <li className="grid gap-2 border-t border-rule pt-6 md:grid-cols-[2.5rem_1fr_auto] md:items-baseline md:gap-6">
                   <span className="num text-sm text-fox md:pt-1">03</span>
                   <div>
-                    <h3 className="font-display text-lg font-semibold text-ink">
+                    <h3 className="font-display text-lg font-semibold text-fox-deep">
                       Score candidates by composite loss
                     </h3>
                     <p className="mt-1 max-w-[64ch] font-sans text-sm leading-relaxed text-muted">
@@ -94,7 +94,7 @@ export function MethodSection() {
                 <li className="grid gap-2 border-t border-rule pt-6 md:grid-cols-[2.5rem_1fr_auto] md:items-baseline md:gap-6">
                   <span className="num text-sm text-fox md:pt-1">04</span>
                   <div>
-                    <h3 className="font-display text-lg font-semibold text-ink">
+                    <h3 className="font-display text-lg font-semibold text-fox-deep">
                       Causal collapse test
                     </h3>
                     <p className="mt-1 max-w-[64ch] font-sans text-sm leading-relaxed text-muted">

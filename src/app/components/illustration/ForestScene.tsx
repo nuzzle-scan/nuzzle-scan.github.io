@@ -90,7 +90,7 @@ export function ForestScene({
       <defs>
         <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--bg-deep)" />
-          <stop offset="60%" stopColor="var(--bg)" />
+          <stop offset="60%" stopColor="var(--scene-twilight)" />
           <stop offset="100%" stopColor="var(--green-deep)" />
         </linearGradient>
         <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
@@ -98,7 +98,7 @@ export function ForestScene({
           <stop offset="100%" stopColor="var(--bg-deep)" />
         </linearGradient>
         <radialGradient id="vignette" cx="50%" cy="55%" r="60%">
-          <stop offset="0%" stopColor="var(--bg)" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--scene-twilight)" stopOpacity="0" />
           <stop offset="100%" stopColor="var(--bg-deep)" stopOpacity="0.55" />
         </radialGradient>
       </defs>
@@ -111,39 +111,45 @@ export function ForestScene({
       <g>
         <Tree x={600} y={690} scale={0.42} color="var(--sage)" variant="round" opacity={0.4} />
         <Tree x={670} y={700} scale={0.48} color="var(--sage)" variant="pine" opacity={0.35} />
-        <Tree x={750} y={688} scale={0.45} color="var(--sage)" variant="tall" opacity={0.4} />
+        <Tree x={750} y={688} scale={0.5} color="var(--sage)" variant="tall" opacity={0.4} />
         <Tree x={830} y={698} scale={0.5} color="var(--sage)" variant="round" opacity={0.4} />
+        <Tree x={1108} y={697} scale={0.75} color="var(--gold)" variant="round" opacity={0.85} />
       </g>
 
       {/* background: distant tree line, sage, low opacity */}
       <motion.g style={{ x: bgLeftX }}>
         <Tree x={80} y={682} scale={0.55} color="var(--sage)" variant="pine" opacity={0.45} />
-        <Tree x={200} y={672} scale={0.6} color="var(--sage)" variant="tall" opacity={0.4} />
+        <Tree x={239} y={698} scale={0.6} color="var(--sage)" variant="tall" opacity={0.4} />
         <Tree x={320} y={690} scale={0.5} color="var(--sage)" variant="round" opacity={0.45} />
         <Tree x={460} y={666} scale={0.65} color="var(--sage)" variant="pine" opacity={0.4} />
         <Tree x={580} y={682} scale={0.5} color="var(--sage)" variant="tall" opacity={0.45} />
         <Tree x={650} y={695} scale={0.45} color="var(--sage)" variant="round" opacity={0.4} />
+        <Tree x={172} y={741} scale={2.6} color="var(--bg-deep)" variant="round" />
+        <Tree x={186} y={695} scale={0.6} color="var(--sage)" variant="pine" opacity={0.4} />
+        <Tree x={133} y={695} scale={0.6} color="var(--gold)" variant="round" opacity={0.4} />
       </motion.g>
       <motion.g style={{ x: bgRightX }}>
         <Tree x={800} y={676} scale={0.55} color="var(--sage)" variant="pine" opacity={0.45} />
-        <Tree x={920} y={686} scale={0.6} color="var(--sage)" variant="tall" opacity={0.4} />
+        <Tree x={955} y={705} scale={0.6} color="var(--sage)" variant="tall" opacity={0.4} />
         <Tree x={1060} y={672} scale={0.5} color="var(--sage)" variant="round" opacity={0.45} />
         <Tree x={1200} y={690} scale={0.65} color="var(--sage)" variant="pine" opacity={0.4} />
         <Tree x={1320} y={676} scale={0.5} color="var(--sage)" variant="tall" opacity={0.45} />
-        <Tree x={1400} y={686} scale={0.48} color="var(--sage)" variant="round" opacity={0.45} />
+        <Tree x={1408} y={697} scale={0.48} color="var(--rust)" variant="round" opacity={0.45} />
       </motion.g>
 
       {/* midground: green-mid/green-deep with autumn accents */}
       <motion.g style={{ x: midLeftX }}>
         <Tree x={-30} y={742} scale={1.1} color="var(--green-mid)" variant="pine" />
         <Tree x={90} y={732} scale={1.3} color="var(--green-deep)" variant="tall" />
-        <Tree x={220} y={748} scale={1.0} color="var(--green-mid)" variant="round" />
+        <Tree x={205} y={748} scale={1} color="var(--gold)" variant="round" />
         <Tree x={330} y={736} scale={1.25} color="var(--green-deep)" variant="pine" />
         <Tree x={440} y={752} scale={0.9} color="var(--green-mid)" variant="tall" />
         <Tree x={540} y={740} scale={1.15} color="var(--green-deep)" variant="round" />
-        <Tree x={640} y={750} scale={1.0} color="var(--green-mid)" variant="pine" />
+        <Tree x={640} y={750} scale={1} color="var(--green-mid)" variant="pine" />
         <Tree x={160} y={738} scale={0.85} color="var(--amber)" variant="round" opacity={0.85} />
         <Tree x={500} y={742} scale={0.75} color="var(--gold)" variant="round" opacity={0.85} />
+        <Tree x={495} y={760} scale={1.7} color="var(--green-mid)" variant="tall" />
+        <Tree x={359} y={750} scale={1.5} color="var(--amber)" variant="pine" />
         {[40, 140, 260, 380, 480, 590].map((gx) => (
           <GrassTuft key={gx} x={gx} y={722} />
         ))}
@@ -151,13 +157,17 @@ export function ForestScene({
       <motion.g style={{ x: midRightX }}>
         <Tree x={800} y={742} scale={1.1} color="var(--green-deep)" variant="pine" />
         <Tree x={900} y={732} scale={1.3} color="var(--green-mid)" variant="tall" />
-        <Tree x={1010} y={748} scale={1.0} color="var(--green-deep)" variant="round" />
+        <Tree x={1010} y={748} scale={1} color="var(--gold)" variant="round" />
         <Tree x={1120} y={736} scale={1.25} color="var(--green-mid)" variant="pine" />
         <Tree x={1230} y={752} scale={0.9} color="var(--green-deep)" variant="tall" />
-        <Tree x={1330} y={740} scale={1.15} color="var(--green-mid)" variant="round" />
-        <Tree x={1450} y={750} scale={1.0} color="var(--green-deep)" variant="pine" />
+        <Tree x={1325} y={729} scale={1.15} color="var(--green-mid)" variant="round" />
+        <Tree x={1450} y={750} scale={1} color="var(--green-deep)" variant="pine" />
         <Tree x={860} y={738} scale={0.85} color="var(--rust)" variant="round" opacity={0.85} />
-        <Tree x={1170} y={742} scale={0.75} color="var(--gold)" variant="round" opacity={0.85} />
+        <Tree x={1060} y={766} scale={1.5} color="var(--bg-deep)" variant="round" />
+        <Tree x={1268} y={779} scale={2.05} color="var(--amber)" variant="tall" />
+        <Tree x={1313} y={819} scale={1.15} color="var(--green-mid)" variant="round" />
+        <Tree x={1179} y={778} scale={1.7} color="var(--rust)" variant="pine" />
+        <Tree x={843} y={739} scale={1.7} color="var(--sage)" variant="round" />
         {[820, 960, 1060, 1180, 1280, 1380].map((gx) => (
           <GrassTuft key={gx} x={gx} y={722} />
         ))}
@@ -165,7 +175,7 @@ export function ForestScene({
 
       {/* fox: sits behind the foreground trees, always fully opaque */}
       <motion.g style={{ x: foxX }}>
-        <svg x="545" y="480" width="350" height="240" viewBox="0 0 380 260">
+        <svg x="547" y="611" width="350" height="239" viewBox="0 0 380 260">
           <FoxGroup walking={foxWalking} />
         </svg>
       </motion.g>
@@ -173,27 +183,24 @@ export function ForestScene({
       {/* foreground: largest, darkest trees — parting these uncovers the fox */}
       <motion.g style={{ x: fgLeftX }}>
         <Tree x={-60} y={762} scale={1.6} color="var(--green-deep)" variant="pine" />
-        <Tree x={110} y={757} scale={1.8} color="var(--bg-deep)" variant="tall" />
+        <Tree x={106} y={773} scale={1.8} color="var(--bg-deep)" variant="tall" />
         <Tree x={280} y={766} scale={1.5} color="var(--green-deep)" variant="pine" />
-        <Tree x={430} y={760} scale={1.7} color="var(--bg-deep)" variant="round" />
+        <Tree x={408} y={804} scale={1.7} color="var(--sage)" variant="tall" />
         <Tree x={580} y={763} scale={1.55} color="var(--green-deep)" variant="tall" />
         <Tree x={700} y={760} scale={1.65} color="var(--bg-deep)" variant="pine" />
-        {/* closing cluster: brackets the fox so the closed forest fully hides it */}
         <Tree x={600} y={764} scale={2.5} color="var(--bg-deep)" variant="tall" />
         <Tree x={665} y={760} scale={2.6} color="var(--green-deep)" variant="pine" />
-        <Tree x={595} y={760} scale={3.0} color="var(--bg-deep)" variant="round" />
+        <Tree x={27} y={762} scale={3} color="var(--green-mid)" variant="pine" />
+        <Tree x={270} y={766} scale={2.5} color="var(--green-mid)" variant="pine" />
       </motion.g>
       <motion.g style={{ x: fgRightX }}>
-        <Tree x={740} y={760} scale={1.6} color="var(--bg-deep)" variant="pine" />
+        <Tree x={728} y={803} scale={1.6} color="var(--bg-deep)" variant="pine" />
         <Tree x={900} y={757} scale={1.8} color="var(--green-deep)" variant="tall" />
-        {/* closing cluster: brackets the fox so the closed forest fully hides it */}
-        <Tree x={730} y={762} scale={2.7} color="var(--bg-deep)" variant="pine" />
-        <Tree x={800} y={764} scale={2.5} color="var(--green-deep)" variant="tall" />
-        <Tree x={865} y={760} scale={2.2} color="var(--bg-deep)" variant="round" />
-        <Tree x={801} y={760} scale={3.0} color="var(--green-deep)" variant="round" />
-        <Tree x={1060} y={766} scale={1.5} color="var(--bg-deep)" variant="round" />
-        <Tree x={1220} y={760} scale={1.7} color="var(--green-deep)" variant="pine" />
-        <Tree x={1370} y={763} scale={1.55} color="var(--bg-deep)" variant="tall" />
+        <Tree x={800} y={773} scale={2.5} color="var(--green-mid)" variant="pine" />
+        <Tree x={1106} y={790} scale={1.9} color="var(--green-deep)" variant="round" />
+        <Tree x={967} y={774} scale={2.55} color="var(--sage)" variant="pine" />
+        <Tree x={1227} y={823} scale={1.7} color="var(--green-deep)" variant="pine" />
+        <Tree x={1367} y={767} scale={1.55} color="var(--bg-deep)" variant="tall" />
         <Tree x={1490} y={760} scale={1.65} color="var(--green-deep)" variant="pine" />
       </motion.g>
 

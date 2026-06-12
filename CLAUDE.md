@@ -22,9 +22,7 @@ Two evaluation tracks must remain visually and semantically separated:
 - **Validation (§ 02)** — declared-poisoned models, ground truth known.
   Detection rate is the metric.
 - **Wild (§ 03)** — popular HF models scanned without ground truth.
-  Produces a **risk score** (0–100), never a verdict. Subject to a
-  **90-day responsible-disclosure policy** before any score is
-  published.
+  Produces a **risk score** (0–100), never a verdict.
 
 ---
 
@@ -41,17 +39,12 @@ them, flag the conflict before proceeding.
 - Detection claims on third-party HF models are framed as
   *risk score* or *suspicion score* — never *verdict*, *poisoned*,
   *malicious*, *compromised*.
-- The 90-day responsible-disclosure policy is mentioned anywhere
-  wild scores appear, and once in the footer.
 
 ### Visual — hard NO list
-- No neon green, no glow effects, no cyberpunk gradients.
-- No matrix code, hooded-hacker imagery, skull-and-circuit visuals.
 - No red alerts, warning klaxons.
 - No shield, padlock, or "security badge" icons. The fox does that job.
 - No marketing CTA buttons. Text links only.
 - No testimonials, "trusted by" logo wall, pricing.
-- No glassmorphism, no carousel, no auto-rotating hero, no video.
 - No emoji in the UI.
 
 ### Engineering

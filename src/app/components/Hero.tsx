@@ -42,7 +42,7 @@ export function Hero() {
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-fox" aria-hidden="true" />
             v0.1 · open-source scanner · updated June 2026
           </p>
-          <h1 className="font-display text-[clamp(2.6rem,6vw,4.6rem)] font-semibold leading-[1.1] text-ink">
+          <h1 className="font-display text-[clamp(2.6rem,6vw,4.6rem)] font-semibold leading-[1.1] text-green-deep">
             Finding sleeper agents in fine-tuned language models.
           </h1>
           <p className="mt-6 max-w-[58ch] font-sans text-lg leading-relaxed text-muted">

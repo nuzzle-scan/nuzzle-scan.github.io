@@ -13,7 +13,7 @@ export function CitationSection() {
               </span>
             </div>
             <div className="min-w-0">
-              <h2 className="font-display text-3xl font-semibold leading-tight text-ink md:text-4xl">
+              <h2 className="font-display text-3xl font-semibold leading-tight text-green-deep md:text-4xl">
                 If you use Nuzzle, please cite the paper.
               </h2>
               <p className="mt-4 max-w-[68ch] font-sans text-base leading-relaxed text-muted">

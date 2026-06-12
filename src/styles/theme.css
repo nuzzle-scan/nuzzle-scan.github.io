@@ -1,13 +1,13 @@
 :root {
-  /* Dark forest palette */
-  --bg: #0E1F16;
-  --bg-alt: #16301F;
+  /* Light forest palette */
+  --bg: #F3EEDF;
+  --bg-alt: #EAE1CC;
   --bg-deep: #080F0A;
-  --ink: #F3EEDF;
-  --muted: #92AE82;
+  --ink: #0E1F16;
+  --muted: #5E7350;
   --fox: #D96A2C;
   --fox-deep: #B5521E;
-  --cream: #F6EFE0;
+  --cream: #FFFBF2;
   --green-deep: #1C3A26;
   --green-mid: #2F5D3A;
   --sage: #7FA068;
@@ -15,20 +15,21 @@
   --amber: #E8832A;
   --rust: #C9501F;
   --brown: #5C4530;
-  --rule: rgba(243, 238, 223, 0.12);
-  --rule-strong: rgba(243, 238, 223, 0.22);
-  --hover: rgba(243, 238, 223, 0.06);
+  --rule: rgba(14, 31, 22, 0.12);
+  --rule-strong: rgba(14, 31, 22, 0.22);
+  --hover: rgba(14, 31, 22, 0.05);
   --risk-low: #7FB35E;
   --risk-med: #E0AE4A;
   --risk-high: #E07A36;
+
+  /* Hero forest scene keeps its own twilight gradient, independent of the
+     page background (formerly --bg in the dark palette). */
+  --scene-twilight: #0E1F16;
 
   /* Typography */
   --display: "Fraunces", "Iowan Old Style", "Georgia", serif;
   --sans: "DM Sans", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-@theme {
   --color-bg: var(--bg);
   --color-bg-alt: var(--bg-alt);
   --color-bg-deep: var(--bg-deep);
