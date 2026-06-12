@@ -216,3 +216,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node / Vite
+node_modules/
+dist-ssr/
+*.local
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+
+# Internal planning notes
+Plan.md
