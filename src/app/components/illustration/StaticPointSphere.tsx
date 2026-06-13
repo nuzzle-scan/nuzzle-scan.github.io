@@ -1,7 +1,7 @@
 import { jitteredSphere, mulberry32, rotatePoint, project } from "./pointCloudMath";
 
-const POINT_COUNT = 260;
-const CAMERA_Z = 1.1;
+const POINT_COUNT = 720;
+const CAMERA_Z = 2.6;
 const FOCAL = 1.4;
 const YAW = 4.4;
 const PITCH = 0.18;
@@ -22,10 +22,10 @@ function buildCircles(): Circle[] {
     const proj = project(rotated, CAMERA_Z, FOCAL);
     if (proj.relZ <= 0.02) continue;
 
-    const r = Math.max(0.18, Math.min(proj.scale * 0.55, 0.8));
-    const opacity = Math.max(0.15, Math.min(proj.scale * 0.55, 1));
+    const r = Math.max(0.22, Math.min(proj.scale * 0.85, 0.9));
+    const opacity = Math.max(0.16, Math.min(proj.scale * 0.9, 1));
 
-    circles.push({ cx: 50 + proj.x * 38, cy: 50 + proj.y * 38, r, opacity });
+    circles.push({ cx: 50 + proj.x * 42, cy: 50 + proj.y * 42, r, opacity });
   }
   return circles;
 }

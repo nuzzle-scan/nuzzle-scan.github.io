@@ -22,6 +22,14 @@
   --risk-med: #E0AE4A;
   --risk-high: #E07A36;
 
+  /* Atmospheric limb — the hero→document transition reads as a planet's
+     atmosphere seen from orbit: deep space (--bg-deep) easing down through
+     navy, azure and pale haze to the cream "surface" (--bg). */
+  --atmo-deep: #0A1A3A;
+  --atmo-blue: #21508C;
+  --atmo-cyan: #5798B2;
+  --atmo-haze: #C6D8D2;
+
   /* Hero forest scene keeps its own twilight gradient, independent of the
      page background (formerly --bg in the dark palette). */
   --scene-twilight: #0E1F16;
@@ -53,6 +61,13 @@
   --font-display: var(--display);
   --font-sans: var(--sans);
   --font-mono: var(--mono);
+}
+
+/* Tailwind v4 generates `font-sans`/`font-mono` but not `font-display` from the
+   theme key — only h1–h4 pick up --display via the base layer. Define it so the
+   utility works on non-heading elements (the wordmark, the hero tagline). */
+@utility font-display {
+  font-family: var(--display);
 }
 
 @layer base {

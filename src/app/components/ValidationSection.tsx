@@ -3,7 +3,19 @@ import { FadeInUp, RiskBar, StatusPill } from "./shared";
 /** §02 — declared-poisoned models, ground truth known. Detection rate is the metric. */
 export function ValidationSection() {
   return (
-    <section id="validation" className="border-t border-rule">
+    <section id="validation">
+      {/* Atmospheric limb: the black star-field hero dissolves into the cream
+          document like a planet's atmosphere seen from orbit — deep space, navy,
+          azure, pale haze, then the cream "surface". Top stop matches the hero's
+          --bg-deep and the bottom matches the page --bg, so both ends are seamless. */}
+      <div
+        aria-hidden="true"
+        className="h-[42vh] w-full"
+        style={{
+          background:
+            "linear-gradient(to bottom, var(--bg-deep) 0%, var(--atmo-deep) 26%, var(--atmo-blue) 47%, var(--atmo-cyan) 64%, var(--atmo-haze) 82%, var(--bg) 100%)",
+        }}
+      />
       <div className="wrap py-20 md:py-28">
         <FadeInUp>
           <div className="grid gap-6 md:grid-cols-[200px_1fr] md:gap-12">

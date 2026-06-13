@@ -68,12 +68,14 @@ them, flag the conflict before proceeding.
   `src/styles/theme.css` for those previews.
 - **Numbers in tables** use the monospace font and are decimal-aligned
   (`.num` class → `font-variant-numeric: tabular-nums`).
-- **Graceful degradation** is mandatory: `useReducedMotion()` and viewport
-  `<900px` fall back to the static end-state — the hero renders
-  `ForestScene` with the forest already parted and the fox visible, no
-  sticky scroll container or scroll-driven transforms. This is a
-  React/Vite SPA and requires JavaScript; the fallback target is reduced
-  motion and small viewports, not JS-disabled.
+- **Graceful degradation** is mandatory, but the scroll-driven point-cloud
+  hero (`PointCloud`) now runs on **all viewport widths** when motion is
+  allowed — on `<900px` it draws a lighter field (`POINT_COUNT_MOBILE`) and
+  takes **finger-drag (touch) repulsion** in place of the cursor, with the
+  same sticky scroll-zoom. Only `useReducedMotion()` falls back to the static
+  end-state (`StaticPointSphere`), with no sticky scroll container or
+  scroll-driven transforms. This is a React/Vite SPA and requires JavaScript;
+  the fallback target is reduced motion, not small viewports or JS-disabled.
 
 ---
 

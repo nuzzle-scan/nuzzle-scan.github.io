@@ -15,11 +15,8 @@ function HeroNav() {
   return (
     <div className="wrap pointer-events-auto flex flex-wrap items-center justify-between gap-4 py-6">
       <a href="#" className="plain" aria-label="Nuzzle">
-        <span className="font-display text-lg font-semibold">
-          Nuzzle{" "}
-          <span className="font-sans text-sm font-normal" style={{ color: "var(--sage)" }}>
-            scanner
-          </span>
+        <span className="font-display text-2xl font-semibold tracking-tight" style={{ color: "var(--fox)" }}>
+          Nuzzle
         </span>
       </a>
       <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 font-sans text-sm" aria-label="Primary">
@@ -45,12 +42,15 @@ function HeroTitle() {
 /** Description + links, revealed at the center once the zoom completes. */
 function HeroReveal() {
   return (
-    <div className="mx-auto max-w-xl px-6 text-center">
-      <p className="mx-auto max-w-[54ch] font-sans text-lg leading-relaxed" style={{ color: "var(--cream)" }}>
+    <div className="mx-auto max-w-xl px-2 text-center min-[600px]:px-6">
+      <p
+        className="mx-auto max-w-[54ch] font-display text-base leading-snug min-[600px]:text-xl min-[600px]:leading-relaxed"
+        style={{ color: "var(--cream)" }}
+      >
         An open-source scanner for behavioral backdoors in the Hugging Face
         ecosystem.
       </p>
-      <div className="mt-7 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-sans text-sm">
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 font-sans text-[0.8rem] min-[600px]:mt-7 min-[600px]:text-sm">
         <a href="#paper">Read the paper</a>
         <span style={{ color: "var(--sage)" }} aria-hidden="true">·</span>
         <a href="#github">View on GitHub</a>
@@ -68,9 +68,10 @@ function HeroReveal() {
  * headline shows, centered above a mouse-reactive sphere of points
  * (`PointCloud`). Scrolling drives a camera dolly into the sphere: the title
  * lifts away, front-facing model-family bubbles flare up, and the scanner
- * description + links resolve at the center. <900px viewports and
- * prefers-reduced-motion get a single static frame (`StaticPointSphere`) with
- * the title and description shown together, no sticky/scroll behaviour.
+ * description + links resolve at the center. The same scroll-zoom runs on
+ * phones (PointCloud falls back to a lighter field and finger-drag repulsion);
+ * only prefers-reduced-motion gets a single static frame (`StaticPointSphere`)
+ * with the title and description shown together, no sticky/scroll behaviour.
  */
 export function Hero() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,8 +94,9 @@ export function Hero() {
 
   return (
     <section id="hero" className="hero-panel relative">
-      {/* Scroll-driven point-cloud zoom — desktop, motion-safe only */}
-      <div ref={containerRef} className="relative hidden min-[900px]:motion-safe:block" style={{ height: "300vh" }}>
+      {/* Scroll-driven point-cloud zoom — all viewports, motion-safe only.
+          On <900px PointCloud uses a lighter field and finger-drag repulsion. */}
+      <div ref={containerRef} className="relative motion-reduce:hidden" style={{ height: "300vh" }}>
         <div className="sticky top-0 h-screen w-full overflow-hidden">
           <PointCloud scrollProgress={scrollYProgress} />
           {/* Pass pointer events through the empty areas to the canvas below
@@ -109,15 +111,15 @@ export function Hero() {
             className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
             style={{ opacity: revealOpacity, y: revealY, scale: revealScale }}
           >
-            <div className="pointer-events-auto">
+            <div className="pointer-events-auto max-w-[15rem] min-[600px]:max-w-none">
               <HeroReveal />
             </div>
           </motion.div>
         </div>
       </div>
 
-      {/* Static frame — <900px viewports or prefers-reduced-motion */}
-      <div className="relative block overflow-hidden min-[900px]:motion-safe:hidden">
+      {/* Static frame — prefers-reduced-motion only */}
+      <div className="relative hidden overflow-hidden motion-reduce:block">
         <StaticPointSphere className="absolute inset-0 h-full w-full" />
         <div className="relative z-10 flex min-h-[92vh] flex-col">
           <HeroNav />
