@@ -3,10 +3,10 @@ import type { MotionValue } from "motion/react";
 import { jitteredSphere, mulberry32, lerp, smoothstep, hexToRgb } from "./pointCloudMath";
 import { BUBBLE_SEEDS, BUBBLE_COUNT } from "./modelLogos";
 
-// Full field on desktop; a lighter field on phones so the animated sphere stays
-// smooth on mobile GPUs. Picked once at mount from the viewport width.
+// Full field on desktop; a lighter field on phones. The GPU renders all of them
+// in one draw call, so this is cheap — the count mostly affects fill density.
 const POINT_COUNT_DESKTOP = 10000;
-const POINT_COUNT_MOBILE = 2600;
+const POINT_COUNT_MOBILE = 4000;
 const CAMERA_START = 2.6;
 const CAMERA_END = 1.12;
 const FOCAL = 1.4;
@@ -16,18 +16,11 @@ const INTRO_MS = 1800;
 const INTRO_SPREAD = 4.4; // max start distance off the shell, in sphere radii
 const INTRO_STAGGER = 0.4; // fraction of the intro spent staggering start times
 
-// Local cursor / finger repulsion (screen space). Points ease toward their
-// pushed-aside target fast (PUSH_K) and spring back slowly (RECOVER_K), so a
-// quick sweep still visibly parts the field instead of lagging behind.
+// Local cursor / finger repulsion (screen space, pixels). Evaluated per point in
+// the vertex shader against an eased pointer position — instant, no per-point
+// spring state, so a fast sweep can't lag or skip.
 const REPEL_RADIUS = 170;
 const REPEL_PUSH = 58;
-const PUSH_K = 0.6;
-const RECOVER_K = 0.1;
-
-// Fine per-point scintillation: every point flickers on a fast cycle with its
-// own random phase, so the whole shell shimmers ("fourmillement") between the
-// brighter sweeping crests instead of going dark.
-const TWINKLE_SPEED = 6.5;
 
 // When the centred copy appears, dim the field behind it with a radial gradient
 // so the text reads; points outside the logo ring keep their full intensity.
@@ -56,7 +49,122 @@ const AUTO_ROTATE = 0.0105;
 const SPHERE_CY_TOP = 0.64; // × height
 const SPHERE_CY_ZOOM = 0.5; // × height
 
-const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
+// Vertex shader: all per-point work runs here on the GPU. Position (intro lerp →
+// rotation → perspective → screen-space repulsion) plus color/size/alpha (waves,
+// per-point twinkle, depth, text-dim) are computed and passed to the fragment
+// shader. Points are drawn as gl.POINTS, so gl_PointSize gives the same little
+// squares the 2D fillRect path produced.
+const VERT_SRC = `
+precision highp float;
+attribute vec3 aShell;   // resting position on the unit sphere
+attribute vec3 aStart;   // scattered intro start offset
+attribute vec2 aMeta;    // x: intro delay, y: twinkle phase
+uniform float uIntro, uIntroStagger, uTime, uPixelRatio;
+uniform float uYaw, uPitch, uCameraZ, uFocal, uScaleFactor;
+uniform vec2 uViewport, uCenter, uMouse, uRepel, uDimR;
+uniform float uTextReveal, uTextDim, uDimInner, uDimOuter;
+uniform vec3 uSage, uHi, uFox, uCream;
+varying vec3 vColor;
+varying float vAlpha;
+void main() {
+  float localT = clamp((uIntro - aMeta.x) / (1.0 - uIntroStagger), 0.0, 1.0);
+  float e = 1.0 - localT;
+  vec3 p = aShell + aStart * (e * e * e); // 1 - easeOutCubic(localT)
+
+  float cy = cos(uYaw), sy = sin(uYaw);
+  float x1 = p.x * cy + p.z * sy;
+  float z1 = -p.x * sy + p.z * cy;
+  float cp = cos(uPitch), sp = sin(uPitch);
+  float y1 = p.y * cp - z1 * sp;
+  float z2 = p.y * sp + z1 * cp;
+
+  float relZ = z2 + uCameraZ;
+  if (relZ <= 0.02) { vColor = vec3(0.0); vAlpha = 0.0; gl_PointSize = 0.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+  float scale = uFocal / relZ;
+
+  float baseX = uCenter.x + x1 * scale * uScaleFactor;
+  float baseY = uCenter.y - y1 * scale * uScaleFactor;
+
+  float screenX = baseX, screenY = baseY;
+  if (uMouse.x > -9000.0) {
+    float dx = baseX - uMouse.x, dy = baseY - uMouse.y;
+    float dist = sqrt(dx * dx + dy * dy);
+    if (dist < uRepel.x) {
+      float f = 1.0 - dist / uRepel.x;
+      float inv = (uRepel.y * f * f) / max(dist, 1.0);
+      screenX += dx * inv; screenY += dy * inv;
+    }
+  }
+  gl_Position = vec4((screenX / uViewport.x) * 2.0 - 1.0, 1.0 - (screenY / uViewport.y) * 2.0, 0.0, 1.0);
+
+  float w1 = sin(x1 * 2.6 + y1 * 1.7 - uTime * 5.0);
+  float w2 = sin(x1 * -2.1 + y1 * 2.6 - uTime * 5.7 + 2.1);
+  float wave = max(w1, w2);
+  float glow = wave > 0.4 ? smoothstep(0.4, 1.0, wave) : 0.0;
+  float flicker = 0.5 + 0.5 * sin(uTime * 6.5 + aMeta.y);
+
+  float depthOpacity = min(0.44 + scale * 0.5, 1.0);
+  float size = clamp(scale * 0.66, 0.6, 1.1) * (1.0 + glow * 0.55);
+
+  float warm = glow * 0.85;
+  float peak = smoothstep(0.45, 1.0, glow) * 0.3;
+  float spark = max(0.0, flicker - 0.72) * 0.6;
+  vColor = mix(mix(mix(uSage, uHi, warm), uFox, peak), uCream, spark);
+
+  float baseLum = depthOpacity * (0.8 + 0.42 * flicker);
+  float alpha = min(max(baseLum, glow * 0.9), 1.0) * min(localT * 1.3, 1.0);
+  if (uTextReveal > 0.0) {
+    float ddx = (screenX - uCenter.x) / uDimR.x;
+    float ddy = (screenY - uCenter.y) / uDimR.y;
+    float radial = smoothstep(uDimInner, uDimOuter, sqrt(ddx * ddx + ddy * ddy));
+    float dim = uTextDim + (1.0 - uTextDim) * radial;
+    alpha *= 1.0 - uTextReveal * (1.0 - dim);
+  }
+  vAlpha = alpha;
+  gl_PointSize = size * 2.0 * uPixelRatio;
+}
+`;
+
+const FRAG_SRC = `
+precision mediump float;
+varying vec3 vColor;
+varying float vAlpha;
+void main() {
+  if (vAlpha <= 0.0) discard;
+  gl_FragColor = vec4(vColor, vAlpha);
+}
+`;
+
+function compileShader(gl: WebGLRenderingContext, type: number, src: string): WebGLShader | null {
+  const shader = gl.createShader(type);
+  if (!shader) return null;
+  gl.shaderSource(shader, src);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.error("PointCloud shader error:", gl.getShaderInfoLog(shader));
+    gl.deleteShader(shader);
+    return null;
+  }
+  return shader;
+}
+
+function buildProgram(gl: WebGLRenderingContext): WebGLProgram | null {
+  const vert = compileShader(gl, gl.VERTEX_SHADER, VERT_SRC);
+  const frag = compileShader(gl, gl.FRAGMENT_SHADER, FRAG_SRC);
+  if (!vert || !frag) return null;
+  const program = gl.createProgram();
+  if (!program) return null;
+  gl.attachShader(program, vert);
+  gl.attachShader(program, frag);
+  gl.linkProgram(program);
+  gl.deleteShader(vert);
+  gl.deleteShader(frag);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error("PointCloud link error:", gl.getProgramInfoLog(program));
+    return null;
+  }
+  return program;
+}
 
 interface PointCloudProps {
   /** 0 at the top of the hero, 1 once the scroll-driven zoom is complete. */
@@ -64,13 +172,14 @@ interface PointCloudProps {
 }
 
 /**
- * Mouse-reactive, scroll-zooming sphere of ~1700 disordered points. On mount
- * the points stream in from outside and condense into the shell. Bright
- * `--cream` waves sweep across; points near the cursor are pushed aside and
- * spring back. As the scroll dolly pulls the camera in, model-family bubbles
- * (`BUBBLE_SEEDS`)
- * emerge from the shell and settle into an even circle of brand-colored logos
- * around the centered description.
+ * Mouse-reactive, scroll-zooming sphere of disordered points, rendered on the
+ * GPU (WebGL). On mount the points stream in from outside and condense into the
+ * shell; warm crests sweep across and the whole field shimmers. Points near the
+ * cursor are pushed aside. As the scroll dolly pulls the camera in, model-family
+ * bubbles (`BUBBLE_SEEDS`, DOM) emerge from the shell and settle into an even
+ * circle of brand-colored logos around the centered description. All per-point
+ * work is in the vertex shader, so each frame the main thread only updates
+ * uniforms and issues one draw call — input stays responsive, no hitching.
  */
 export function PointCloud({ scrollProgress }: PointCloudProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,9 +190,12 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    const ctx = context;
+    const glCtx = canvas.getContext("webgl", { alpha: true, antialias: true, premultipliedAlpha: false });
+    if (!glCtx) {
+      console.warn("WebGL unavailable — hero sphere disabled.");
+      return;
+    }
+    const gl = glCtx; // non-null alias so narrowing holds inside the draw closure
 
     const isMobile = window.matchMedia("(max-width: 899px)").matches;
     const POINT_COUNT = isMobile ? POINT_COUNT_MOBILE : POINT_COUNT_DESKTOP;
@@ -91,56 +203,97 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
     const rand = mulberry32(0x4e757a);
     const points = jitteredSphere(POINT_COUNT, rand);
 
-    // Intro: per-point scattered start offset (model space) + staggered start.
-    const startX = new Float32Array(POINT_COUNT);
-    const startY = new Float32Array(POINT_COUNT);
-    const startZ = new Float32Array(POINT_COUNT);
-    const delay = new Float32Array(POINT_COUNT);
-    const twPhase = new Float32Array(POINT_COUNT); // per-point twinkle phase
+    // Per-point attributes, uploaded to the GPU once: resting shell position,
+    // scattered intro start offset, and [intro delay, twinkle phase].
+    const shellArr = new Float32Array(POINT_COUNT * 3);
+    const startArr = new Float32Array(POINT_COUNT * 3);
+    const metaArr = new Float32Array(POINT_COUNT * 2);
     for (let i = 0; i < POINT_COUNT; i++) {
+      shellArr[i * 3] = points[i].x;
+      shellArr[i * 3 + 1] = points[i].y;
+      shellArr[i * 3 + 2] = points[i].z;
       const u = rand() * 2 - 1;
       const phi = rand() * Math.PI * 2;
       const r = Math.sqrt(Math.max(0, 1 - u * u));
       const dist = 0.8 + rand() * INTRO_SPREAD;
-      startX[i] = Math.cos(phi) * r * dist;
-      startY[i] = u * dist;
-      startZ[i] = Math.sin(phi) * r * dist;
-      delay[i] = rand() * INTRO_STAGGER;
-      twPhase[i] = rand() * Math.PI * 2;
+      startArr[i * 3] = Math.cos(phi) * r * dist;
+      startArr[i * 3 + 1] = u * dist;
+      startArr[i * 3 + 2] = Math.sin(phi) * r * dist;
+      metaArr[i * 2] = rand() * INTRO_STAGGER;
+      metaArr[i * 2 + 1] = rand() * Math.PI * 2;
     }
 
-    // Per-point screen-space displacement (cursor repulsion) with spring-back.
-    const offX = new Float32Array(POINT_COUNT);
-    const offY = new Float32Array(POINT_COUNT);
-
     const rootStyle = getComputedStyle(document.documentElement);
-    const [sr, sg, sb] = hexToRgb(rootStyle.getPropertyValue("--sage") || "#7FA068");
-    const [cr, cg, cb] = hexToRgb(rootStyle.getPropertyValue("--cream") || "#FFFBF2");
-    const [gr, gg, gb] = hexToRgb(rootStyle.getPropertyValue("--gold") || "#E8C87A");
-    const [fr, fg, fb] = hexToRgb(rootStyle.getPropertyValue("--fox") || "#D96A2C");
-    // Wave highlight: cream leaned halfway to gold — a warm amber glow rather
-    // than a neutral white one. The very brightest tips lean a touch toward fox.
-    const hr = lerp(cr, gr, 0.5);
-    const hg = lerp(cg, gg, 0.5);
-    const hb = lerp(cb, gb, 0.5);
+    const norm = (hex: string, fb: string): [number, number, number] => {
+      const [r, g, b] = hexToRgb(rootStyle.getPropertyValue(hex) || fb);
+      return [r / 255, g / 255, b / 255];
+    };
+    const sage = norm("--sage", "#7FA068");
+    const cream = norm("--cream", "#FFFBF2");
+    const gold = norm("--gold", "#E8C87A");
+    const fox = norm("--fox", "#D96A2C");
+    // Wave highlight: cream leaned halfway to gold — a warm amber glow.
+    const hi: [number, number, number] = [
+      lerp(cream[0], gold[0], 0.5),
+      lerp(cream[1], gold[1], 0.5),
+      lerp(cream[2], gold[2], 0.5),
+    ];
 
-    // Color cache: per point the fill color is a continuous lerp, but building a
-    // fresh `rgba(...)` string for each of ~10k points every frame allocates
-    // hundreds of thousands of short-lived strings per second — the GC churn
-    // that makes interaction hitch every few seconds. Quantize the color to
-    // 5 bits/channel and reuse the string; opacity rides on ctx.globalAlpha
-    // (a number), so steady-state allocation is essentially zero.
-    const colorCache: string[] = new Array(32768);
+    const program = buildProgram(gl);
+    if (!program) return;
+    gl.useProgram(program);
+
+    const makeBuffer = (data: Float32Array) => {
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+      return buf;
+    };
+    const shellBuf = makeBuffer(shellArr);
+    const startBuf = makeBuffer(startArr);
+    const metaBuf = makeBuffer(metaArr);
+    const bindAttrib = (buf: WebGLBuffer | null, name: string, size: number) => {
+      const loc = gl.getAttribLocation(program, name);
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+    };
+    bindAttrib(shellBuf, "aShell", 3);
+    bindAttrib(startBuf, "aStart", 3);
+    bindAttrib(metaBuf, "aMeta", 2);
+
+    const U = (name: string) => gl.getUniformLocation(program, name);
+    const u = {
+      intro: U("uIntro"), time: U("uTime"), pixelRatio: U("uPixelRatio"),
+      yaw: U("uYaw"), pitch: U("uPitch"), cameraZ: U("uCameraZ"), scaleFactor: U("uScaleFactor"),
+      viewport: U("uViewport"), center: U("uCenter"), mouse: U("uMouse"), dimR: U("uDimR"),
+      textReveal: U("uTextReveal"),
+    };
+    // Constant uniforms — set once.
+    gl.uniform1f(U("uIntroStagger"), INTRO_STAGGER);
+    gl.uniform1f(U("uFocal"), FOCAL);
+    gl.uniform2f(U("uRepel"), REPEL_RADIUS, REPEL_PUSH);
+    gl.uniform1f(U("uTextDim"), TEXT_DIM);
+    gl.uniform1f(U("uDimInner"), DIM_INNER);
+    gl.uniform1f(U("uDimOuter"), DIM_OUTER);
+    gl.uniform3fv(U("uSage"), sage);
+    gl.uniform3fv(U("uHi"), hi);
+    gl.uniform3fv(U("uFox"), fox);
+    gl.uniform3fv(U("uCream"), cream);
+
+    gl.enable(gl.BLEND);
+    // Straight-alpha "over" into a transparent canvas (the CSS bg shows through).
+    gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clearColor(0, 0, 0, 0);
 
     let width = 0;
     let height = 0;
-    // Cache the container's viewport rect so pointer handling doesn't call
-    // getBoundingClientRect() on every move — that forces a synchronous layout,
-    // and reading it right after writing the bubble styles each frame thrashes
-    // layout during vigorous mouse movement. Refresh it on resize and scroll.
+    let dpr = 1;
+    // Cache the container's viewport rect so pointer handling never calls
+    // getBoundingClientRect() per move (which would force layout). Refresh on
+    // resize and scroll.
     let rectLeft = 0;
     let rectTop = 0;
-
     const readRect = () => {
       const rect = container.getBoundingClientRect();
       rectLeft = rect.left;
@@ -151,60 +304,46 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
       const rect = readRect();
       width = rect.width;
       height = rect.height;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // Cap DPR below the native 2–3 of Retina/phone screens: the canvas backing
+      // store grows with its square, and the browser composites the whole buffer
+      // each frame. For a sparse field of tiny points the resolution loss is
+      // imperceptible, but it markedly cuts per-frame GPU/compositor cost.
+      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      gl.viewport(0, 0, canvas.width, canvas.height);
     };
     resize();
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(container);
     window.addEventListener("scroll", readRect, { passive: true });
 
-    // Raw pixel pointer (for local repulsion) + normalized (for parallax tilt).
-    // `ppx/ppy` track the previous frame's pointer so repulsion can test the
-    // swept segment, not just the latest sample. Park it far offscreen until
-    // the first move so nothing is pushed at rest.
-    const pointer = { px: -9999, py: -9999, ppx: -9999, ppy: -9999, nx: 0, ny: 0 };
+    // Pointer in container pixels; nx/ny normalized for the parallax tilt.
+    const pointer = { px: -9999, py: -9999, nx: 0, ny: 0 };
     const setPointer = (clientX: number, clientY: number) => {
       pointer.px = clientX - rectLeft;
       pointer.py = clientY - rectTop;
       pointer.nx = width > 0 ? (pointer.px / width) * 2 - 1 : 0;
       pointer.ny = height > 0 ? (pointer.py / height) * 2 - 1 : 0;
     };
-    // React 18 delegates events at its root in the *capture* phase, so every
-    // mouse/pointer move over the hero makes React allocate a synthetic event
-    // (confirmed by allocation profiling) — and under fast movement that garbage
-    // triggers a GC hitch. React's capture listener fires before the event
-    // reaches this canvas, so the only way to pre-empt it is to intercept in the
-    // capture phase at `window` (above React's root): read the position there
-    // and stopPropagation so the event never reaches React. Scoped to events
-    // whose target is inside the canvas, so the rest of the page is untouched.
-    const onPointerMove = (event: PointerEvent) => {
-      const target = event.target as Node | null;
-      if (!target || !container.contains(target)) return;
-      setPointer(event.clientX, event.clientY);
-      event.stopPropagation();
-    };
-    const blockHeroMouseMove = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (target && container.contains(target)) event.stopPropagation();
-    };
+    // Plain passive pointer read — same lightweight path as touch (onTouchMove),
+    // which is hitch-free. A non-passive capture-phase block to keep these events
+    // away from React's delegation was a net loss now that WebGL frees the main
+    // thread: it defeats the browser's pointermove coalescing and forces
+    // synchronous per-event work. The browser rAF-aligns pointermove, and with
+    // no matching React handler on the path the delegation cost is negligible.
+    const onPointerMove = (event: PointerEvent) => setPointer(event.clientX, event.clientY);
     const parkPointer = () => {
       pointer.px = -9999;
       pointer.py = -9999;
       pointer.nx = 0;
       pointer.ny = 0;
     };
-    // Touch: feed the same pointer from finger position. Passive listeners so
-    // the page still scrolls (the scroll drives the zoom) while the finger
-    // parts the field as it drags across.
     const onTouchMove = (event: TouchEvent) => {
       const t = event.touches[0];
       if (t) setPointer(t.clientX, t.clientY);
     };
-    window.addEventListener("pointermove", onPointerMove, { capture: true });
-    window.addEventListener("mousemove", blockHeroMouseMove, { capture: true });
+    container.addEventListener("pointermove", onPointerMove, { passive: true });
     container.addEventListener("pointerleave", parkPointer);
     container.addEventListener("touchstart", onTouchMove, { passive: true });
     container.addEventListener("touchmove", onTouchMove, { passive: true });
@@ -217,11 +356,12 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
     let ringSpin = 0;
     let time = 0;
     let startTime = 0;
+    let bubblesShown = false;
+    // Eased pointer for the repulsion field — a touch of softness so the parting
+    // glides with the cursor rather than snapping.
+    let mouseX = -9999;
+    let mouseY = -9999;
 
-    // Only render while the hero canvas is actually on screen. Once the page is
-    // scrolled into the document below, the loop stops — no point drawing ~10k
-    // arcs/frame off-screen and draining the battery. (Backgrounded tabs are
-    // already throttled by the browser's rAF.)
     let running = false;
     let frame = 0;
     function draw(now: number) {
@@ -230,172 +370,50 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
       if (width === 0 || height === 0) return;
       if (startTime === 0) startTime = now;
       const intro = Math.min((now - startTime) / INTRO_MS, 1);
-
       const progress = scrollProgress.get();
 
-      // The field spin eases to a near-stop as the camera zooms in, so the
-      // centered text can be read without the dizzying drift.
       const spinFactor = 1 - smoothstep(0.05, 0.7, progress);
       yaw += (pointer.nx * 0.38 - yaw) * 0.13;
       pitch += (-pointer.ny * 0.22 - pitch) * 0.13;
       autoRotate += AUTO_ROTATE * spinFactor;
-      ringSpin += RING_SPIN; // colored ring keeps its slow clockwise turn
+      ringSpin += RING_SPIN;
       time += 0.016;
+
+      if (pointer.px > -9000) {
+        if (mouseX < -9000) { mouseX = pointer.px; mouseY = pointer.py; }
+        else { mouseX += (pointer.px - mouseX) * 0.4; mouseY += (pointer.py - mouseY) * 0.4; }
+      } else { mouseX = -9999; mouseY = -9999; }
 
       const cameraZ = lerp(CAMERA_START, CAMERA_END, progress);
       const scaleFactor = Math.min(width, height) * 0.4;
       const cx = width / 2;
       const cy = height * lerp(SPHERE_CY_TOP, SPHERE_CY_ZOOM, smoothstep(0, 0.55, progress));
-
-      // Dim the field behind the centred copy as it reveals (matches Hero's
-      // reveal window). 0 = no dimming, 1 = full dim applied.
       const textReveal = smoothstep(0.8, 0.92, progress);
-      const dimRx = width * DIM_RX;
-      const dimRy = height * DIM_RY;
 
-      // Rotation is constant across the frame — hoist the trig out of the loop.
-      const ry = yaw + autoRotate;
-      const cosY = Math.cos(ry);
-      const sinY = Math.sin(ry);
-      const cosP = Math.cos(pitch);
-      const sinP = Math.sin(pitch);
+      gl.uniform1f(u.intro, intro);
+      gl.uniform1f(u.time, time);
+      gl.uniform1f(u.pixelRatio, dpr);
+      gl.uniform1f(u.yaw, yaw + autoRotate);
+      gl.uniform1f(u.pitch, pitch);
+      gl.uniform1f(u.cameraZ, cameraZ);
+      gl.uniform1f(u.scaleFactor, scaleFactor);
+      gl.uniform2f(u.viewport, width, height);
+      gl.uniform2f(u.center, cx, cy);
+      gl.uniform2f(u.mouse, mouseX, mouseY);
+      gl.uniform2f(u.dimR, width * DIM_RX, height * DIM_RY);
+      gl.uniform1f(u.textReveal, textReveal);
 
-      ctx.clearRect(0, 0, width, height);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.POINTS, 0, POINT_COUNT);
 
-      // The pointer's swept path this frame: from where it was last frame to
-      // where it is now. Testing each point against this segment (not just the
-      // latest sample) keeps a fast flick from skipping over points between
-      // frames. On the first frame after the pointer (re)enters, ppx is the
-      // parked sentinel — collapse to a point so we don't push a stray line.
-      const hasPointer = pointer.px > -9000;
-      const segAx = pointer.ppx > -9000 ? pointer.ppx : pointer.px;
-      const segAy = pointer.ppx > -9000 ? pointer.ppy : pointer.py;
-      const segVx = pointer.px - segAx;
-      const segVy = pointer.py - segAy;
-      const segLen2 = segVx * segVx + segVy * segVy;
-
-      for (let i = 0; i < POINT_COUNT; i++) {
-        // Intro: ease this point in from its scattered start toward the shell.
-        const localT = INTRO_STAGGER < 1 ? Math.min(Math.max((intro - delay[i]) / (1 - INTRO_STAGGER), 0), 1) : 1;
-        const offWeight = 1 - easeOutCubic(localT);
-
-        const p = points[i];
-        const ax = p.x + startX[i] * offWeight;
-        const ay = p.y + startY[i] * offWeight;
-        const az = p.z + startZ[i] * offWeight;
-
-        const x1 = ax * cosY + az * sinY;
-        const z1 = -ax * sinY + az * cosY;
-        const y1 = ay * cosP - z1 * sinP;
-        const z2 = ay * sinP + z1 * cosP;
-
-        const relZ = z2 + cameraZ;
-        if (relZ <= 0.02) continue;
-        const scale = FOCAL / relZ;
-
-        const baseX = cx + x1 * scale * scaleFactor;
-        const baseY = cy - y1 * scale * scaleFactor;
-        if (baseX < -60 || baseX > width + 60 || baseY < -60 || baseY > height + 60) continue;
-
-        // Cursor / finger repulsion: push each point away from the nearest
-        // point on the pointer's swept path, then ease it toward that target —
-        // fast on the way out, slow on the way back.
-        let targetX = 0;
-        let targetY = 0;
-        if (hasPointer) {
-          let t = segLen2 > 0 ? ((baseX - segAx) * segVx + (baseY - segAy) * segVy) / segLen2 : 0;
-          t = t < 0 ? 0 : t > 1 ? 1 : t;
-          const dx = baseX - (segAx + t * segVx);
-          const dy = baseY - (segAy + t * segVy);
-          const dist = Math.sqrt(dx * dx + dy * dy); // Math.hypot allocates in V8
-          if (dist < REPEL_RADIUS) {
-            const f = 1 - dist / REPEL_RADIUS;
-            const inv = (REPEL_PUSH * f * f) / (dist || 1);
-            targetX = dx * inv;
-            targetY = dy * inv;
-          }
-        }
-        const pushing = targetX * targetX + targetY * targetY > offX[i] * offX[i] + offY[i] * offY[i];
-        const k = pushing ? PUSH_K : RECOVER_K;
-        offX[i] += (targetX - offX[i]) * k;
-        offY[i] += (targetY - offY[i]) * k;
-        const screenX = baseX + offX[i];
-        const screenY = baseY + offY[i];
-
-        // Smaller, faster crests sweeping the (rotated) sphere face.
-        const w1 = Math.sin(x1 * 2.6 + y1 * 1.7 - time * 5.0);
-        const w2 = Math.sin(x1 * -2.1 + y1 * 2.6 - time * 5.7 + 2.1);
-        const wave = Math.max(w1, w2);
-        const glow = wave > 0.4 ? smoothstep(0.4, 1, wave) : 0;
-
-        // Fine per-point twinkle so the whole shell shimmers between crests.
-        const flicker = 0.5 + 0.5 * Math.sin(time * TWINKLE_SPEED + twPhase[i]);
-
-        // Flatter depth falloff than a literal projection — the back of the
-        // shell stays lit, so the sphere reads as a full, bright field.
-        const depthOpacity = Math.min(0.34 + scale * 0.5, 1);
-        const size = Math.max(0.55, Math.min(scale * 0.62, 1.05)) * (1 + glow * 0.55);
-
-        const warm = glow * 0.85;
-        const peak = smoothstep(0.45, 1, glow) * 0.3; // brightest tips lean fox
-        const spark = Math.max(0, flicker - 0.72) * 0.6; // twinkle peaks lean cream
-        const r = lerp(lerp(lerp(sr, hr, warm), fr, peak), cr, spark);
-        const g = lerp(lerp(lerp(sg, hg, warm), fg, peak), cg, spark);
-        const b = lerp(lerp(lerp(sb, hb, warm), fb, peak), cb, spark);
-        // Shimmering base (twinkle) lifted by the bright crests, gated by intro.
-        const baseLum = depthOpacity * (0.7 + 0.45 * flicker);
-        const opacity = Math.min(Math.max(baseLum, glow * 0.9), 1) * Math.min(localT * 1.3, 1);
-
-        // Radial dimming behind the centred copy: full dim near the centre,
-        // easing back to full intensity at the logo ring and beyond.
-        let dimFactor = 1;
-        if (textReveal > 0) {
-          const ddx = (screenX - cx) / dimRx;
-          const ddy = (screenY - cy) / dimRy;
-          const radial = smoothstep(DIM_INNER, DIM_OUTER, Math.sqrt(ddx * ddx + ddy * ddy));
-          const dim = TEXT_DIM + (1 - TEXT_DIM) * radial;
-          dimFactor = 1 - textReveal * (1 - dim);
-        }
-
-        let a = opacity * dimFactor;
-        a = a < 0 ? 0 : a > 1 ? 1 : a;
-        if (a < 0.01) continue;
-
-        // Quantize to 5 bits/channel and reuse the cached color string.
-        const qr = (r < 0 ? 0 : r > 255 ? 255 : r) >> 3;
-        const qg = (g < 0 ? 0 : g > 255 ? 255 : g) >> 3;
-        const qb = (b < 0 ? 0 : b > 255 ? 255 : b) >> 3;
-        const key = (qr << 10) | (qg << 5) | qb;
-        let col = colorCache[key];
-        if (col === undefined) {
-          col = `rgb(${qr << 3}, ${qg << 3}, ${qb << 3})`;
-          colorCache[key] = col;
-        }
-
-        // fillRect, not arc(): at 1–2px a square is indistinguishable from a
-        // disc but skips path construction/tessellation entirely — a big draw
-        // saving across ~10k points/frame, which keeps the main thread free so
-        // pointer input never stalls.
-        ctx.globalAlpha = a;
-        ctx.fillStyle = col;
-        ctx.fillRect(screenX - size, screenY - size, size * 2, size * 2);
-      }
-      ctx.globalAlpha = 1;
-
-      // Model-family bubbles live on a fixed screen-plane ring (not stuck to
-      // the sphere). At the top they are invisible — indistinguishable from the
-      // field — then fade in and grow into logo bubbles as the camera zooms.
-      // Three separate ramps: the ring widens early (ringGrow), the discs
-      // reveal in the first third (reveal), and the size grows gently across the
-      // whole zoom so they reach their final scale only at the very end.
+      // Model-family bubbles (DOM) on a fixed screen-plane ring: invisible at the
+      // top (indistinguishable from the field), then fading in and growing into
+      // logos as the camera zooms. Only six elements — trivial on the main thread.
       const ringGrow = smoothstep(0.1, 0.92, progress);
       const reveal = smoothstep(0.14, 0.6, progress);
       const sizeGrow = smoothstep(0.18, 1, progress) ** 1.15;
       const bubbleScaleMax = isMobile ? 0.85 : BUBBLE_SCALE;
       const bScale = lerp(DOT_SCALE, bubbleScaleMax, sizeGrow);
-      // Desktop's RX·width and RY·height land near-equal, so the ring reads as a
-      // circle. On a narrow tall phone they diverge into a vertical oval, so use
-      // a single px radius (sized to the width) for a true screen-plane circle.
       let ringRx: number;
       let ringRy: number;
       if (isMobile) {
@@ -405,22 +423,29 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
         ringRy = height * lerp(RING_RY_TOP, RING_RY, ringGrow);
       }
       const bubbleOpacity = Math.min(intro * 1.4, 1) * reveal;
-      // Discs ease from desaturated/dim to full brand color as they emerge.
-      const bubbleFilter = `saturate(${lerp(0.35, 1, reveal).toFixed(3)}) brightness(${lerp(0.72, 1, reveal).toFixed(3)})`;
-      for (let k = 0; k < BUBBLE_COUNT; k++) {
-        const el = bubbleRefs.current[k];
-        if (!el) continue;
-        const ang = -Math.PI / 2 + (2 * Math.PI * BUBBLE_SEEDS[k].ringIndex) / BUBBLE_COUNT + ringSpin;
-        const sx = cx + Math.cos(ang) * ringRx;
-        const sy = cy + Math.sin(ang) * ringRy;
-        el.style.transform = `translate(${sx}px, ${sy}px) scale(${bScale})`;
-        el.style.opacity = String(bubbleOpacity);
-        el.style.filter = bubbleFilter;
+      // At the top of the page the bubbles are invisible (reveal ≈ 0) — exactly
+      // where the mouse interaction happens. Skip all their DOM writes there
+      // (hide once), so playing with the cursor touches nothing but uniforms.
+      if (bubbleOpacity > 0.001) {
+        const bubbleFilter = `saturate(${lerp(0.35, 1, reveal).toFixed(3)}) brightness(${lerp(0.72, 1, reveal).toFixed(3)})`;
+        for (let k = 0; k < BUBBLE_COUNT; k++) {
+          const el = bubbleRefs.current[k];
+          if (!el) continue;
+          const ang = -Math.PI / 2 + (2 * Math.PI * BUBBLE_SEEDS[k].ringIndex) / BUBBLE_COUNT + ringSpin;
+          const sx = cx + Math.cos(ang) * ringRx;
+          const sy = cy + Math.sin(ang) * ringRy;
+          el.style.transform = `translate(${sx}px, ${sy}px) scale(${bScale})`;
+          el.style.opacity = String(bubbleOpacity);
+          el.style.filter = bubbleFilter;
+        }
+        bubblesShown = true;
+      } else if (bubblesShown) {
+        for (let k = 0; k < BUBBLE_COUNT; k++) {
+          const el = bubbleRefs.current[k];
+          if (el) el.style.opacity = "0";
+        }
+        bubblesShown = false;
       }
-
-      // Remember this frame's pointer so next frame can test the swept segment.
-      pointer.ppx = pointer.px;
-      pointer.ppy = pointer.py;
     }
 
     const startLoop = () => {
@@ -432,6 +457,7 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
       running = false;
       cancelAnimationFrame(frame);
     };
+    // Only render while the hero canvas is on screen.
     const visibilityObserver = new IntersectionObserver(
       (entries) => (entries[0].isIntersecting ? startLoop() : stopLoop()),
       { threshold: 0 },
@@ -442,14 +468,17 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
       stopLoop();
       visibilityObserver.disconnect();
       resizeObserver.disconnect();
-      window.removeEventListener("pointermove", onPointerMove, { capture: true });
-      window.removeEventListener("mousemove", blockHeroMouseMove, { capture: true });
+      container.removeEventListener("pointermove", onPointerMove);
       container.removeEventListener("pointerleave", parkPointer);
       container.removeEventListener("touchstart", onTouchMove);
       container.removeEventListener("touchmove", onTouchMove);
       container.removeEventListener("touchend", parkPointer);
       container.removeEventListener("touchcancel", parkPointer);
       window.removeEventListener("scroll", readRect);
+      gl.deleteBuffer(shellBuf);
+      gl.deleteBuffer(startBuf);
+      gl.deleteBuffer(metaBuf);
+      gl.deleteProgram(program);
     };
   }, [scrollProgress]);
 

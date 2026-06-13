@@ -91,6 +91,12 @@ export function Hero() {
   const revealOpacity = useTransform(scrollYProgress, [0, 0.8, 0.9, 1], [0, 0, 1, 1]);
   const revealY = useTransform(scrollYProgress, [0.6, 0.85, 1], [28, 0, 0]);
   const revealScale = useTransform(scrollYProgress, [0.6, 0.85, 1], [0.96, 1, 1]);
+  // The centred copy is interactive only once revealed. While it's invisible at
+  // the top, leaving it pointer-events-auto means the cursor crosses these
+  // (unseen) links as it plays over the sphere — firing over/out + :hover style
+  // recalcs + React event processing on every move, which churns the GC and
+  // hitches the animation. Gate pointer-events on the reveal.
+  const revealPointer = useTransform(scrollYProgress, (p) => (p > 0.85 ? "auto" : "none"));
 
   return (
     <section id="hero" className="hero-panel relative">
@@ -111,9 +117,9 @@ export function Hero() {
             className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
             style={{ opacity: revealOpacity, y: revealY, scale: revealScale }}
           >
-            <div className="pointer-events-auto max-w-[15rem] min-[600px]:max-w-none">
+            <motion.div className="max-w-[15rem] min-[600px]:max-w-none" style={{ pointerEvents: revealPointer }}>
               <HeroReveal />
-            </div>
+            </motion.div>
           </motion.div>
         </div>
       </div>
