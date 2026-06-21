@@ -40,9 +40,9 @@ const CIRCLES = buildCircles();
 export function StaticPointSphere({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
-      <rect width="100" height="100" fill="var(--bg-deep)" />
+      <rect width="100" height="100" fill="var(--hero-bg)" />
       {CIRCLES.map((c, i) => (
-        <circle key={i} cx={c.cx} cy={c.cy} r={c.r} fill="var(--sage)" opacity={c.opacity} />
+        <circle key={i} cx={c.cx} cy={c.cy} r={c.r} fill="#FFFFFF" opacity={c.opacity} />
       ))}
     </svg>
   );

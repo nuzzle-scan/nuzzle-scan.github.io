@@ -54,17 +54,17 @@ const ROWS: WildRow[] = [
  */
 export function WildSection() {
   return (
-    <section id="wild" className="border-t border-rule">
+    <section id="wild" className="rule-irid-top">
       <div className="wrap py-20 md:py-28">
         <FadeInUp>
           <div className="grid gap-6 md:grid-cols-[200px_1fr] md:gap-12">
             <div>
-              <span className="font-sans text-xs uppercase tracking-[0.2em] text-muted">
+              <span className="font-sans text-xs uppercase tracking-[0.2em] text-irid">
                 § 03 · Risk scores in the wild
               </span>
             </div>
             <div className="min-w-0">
-              <h2 className="font-display text-3xl font-semibold leading-tight text-green-deep md:text-4xl">
+              <h2 className="font-display text-3xl font-semibold leading-tight text-ink md:text-4xl">
                 Scanning popular fine-tunes on Hugging Face.
               </h2>
               <p className="mt-4 max-w-[68ch] font-sans text-base leading-relaxed text-muted">

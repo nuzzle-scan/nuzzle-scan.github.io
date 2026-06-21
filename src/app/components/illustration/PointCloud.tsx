@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { MotionValue } from "motion/react";
-import { jitteredSphere, mulberry32, lerp, smoothstep, hexToRgb } from "./pointCloudMath";
+import { jitteredSphere, mulberry32, lerp, smoothstep } from "./pointCloudMath";
 import { BUBBLE_SEEDS, BUBBLE_COUNT } from "./modelLogos";
 
 // Full field on desktop; a lighter field on phones. The GPU renders all of them
@@ -12,9 +12,12 @@ const CAMERA_END = 1.12;
 const FOCAL = 1.4;
 
 // One-time intro: points stream in from a scattered cloud and form the sphere.
-const INTRO_MS = 1800;
-const INTRO_SPREAD = 4.4; // max start distance off the shell, in sphere radii
-const INTRO_STAGGER = 0.4; // fraction of the intro spent staggering start times
+// Slower, wider and brighter than a subtle settle — the incoming swarm should be
+// clearly readable as it rushes in and condenses (see also the in-flight alpha
+// ramp and size boost in the vertex shader).
+const INTRO_MS = 2700;
+const INTRO_SPREAD = 6.5; // max start distance off the shell, in sphere radii
+const INTRO_STAGGER = 0.5; // fraction of the intro spent staggering start times
 
 // Local cursor / finger repulsion (screen space, pixels). Evaluated per point in
 // the vertex shader against an eased pointer position — instant, no per-point
@@ -38,8 +41,15 @@ const RING_RY = 0.3; // × height, zoomed-in
 const RING_RX_TOP = 0.12; // × width, at the top
 const RING_RY_TOP = 0.15; // × height, at the top
 const DOT_SCALE = 0.06; // bubble scale where it starts fading in from the field
-const BUBBLE_SCALE = 1.2; // bubble scale once fully zoomed in
+const BUBBLE_SCALE = 1.0; // bubble scale once fully zoomed in
 const RING_SPIN = 0.0016; // slow clockwise turn of the ring, per frame
+
+// Point convergence around each model node (screen px). Field points within
+// HALO_RADIUS are drawn inward — up to HALO_PULL at the node — and pile into a
+// ring no tighter than HALO_INNER, leaving the centre clear for the logo glyph.
+const HALO_RADIUS = 130;
+const HALO_INNER = 26;
+const HALO_PULL = 120;
 
 // Field idle spin — eases to a near-stop as the camera zooms in.
 const AUTO_ROTATE = 0.0105;
@@ -63,7 +73,8 @@ uniform float uIntro, uIntroStagger, uTime, uPixelRatio;
 uniform float uYaw, uPitch, uCameraZ, uFocal, uScaleFactor;
 uniform vec2 uViewport, uCenter, uMouse, uRepel, uDimR;
 uniform float uTextReveal, uTextDim, uDimInner, uDimOuter;
-uniform vec3 uSage, uHi, uFox, uCream;
+uniform float uConverge, uHaloR, uHaloInner, uHaloPull;
+uniform vec2 uNodes[${BUBBLE_COUNT}];
 varying vec3 vColor;
 varying float vAlpha;
 void main() {
@@ -95,30 +106,74 @@ void main() {
       screenX += dx * inv; screenY += dy * inv;
     }
   }
+
+  // Model-node convergence: as the camera zooms, points within uHaloR of a model
+  // node are drawn inward and pile into a luminous ring around it (clamped to an
+  // inner clear zone so the logo stays legible at the centre). The node thus
+  // reads as a halo grown from the field's own points — not a pasted-on disc.
+  float halo = 0.0;
+  if (uConverge > 0.001) {
+    for (int n = 0; n < ${BUBBLE_COUNT}; n++) {
+      vec2 d = vec2(screenX, screenY) - uNodes[n];
+      float dist = length(d);
+      if (dist < uHaloR) {
+        float f = 1.0 - dist / uHaloR;            // 1 at node .. 0 at edge
+        float pull = uConverge * f * f * uHaloPull;
+        // Per-point jitter on the settling radius turns the ring into a soft,
+        // uneven cloud instead of a clean circular outline (no reticle look).
+        float jitter = fract(sin(aMeta.y) * 43.0);
+        float inner = uHaloInner * (0.7 + 1.2 * jitter);
+        float keep = max(dist - pull, inner * uConverge);
+        vec2 np = uNodes[n] + (d / max(dist, 0.001)) * keep;
+        screenX = np.x; screenY = np.y;
+        halo = max(halo, uConverge * f);
+      }
+    }
+  }
   gl_Position = vec4((screenX / uViewport.x) * 2.0 - 1.0, 1.0 - (screenY / uViewport.y) * 2.0, 0.0, 1.0);
 
-  float w1 = sin(x1 * 2.6 + y1 * 1.7 - uTime * 5.0);
-  float w2 = sin(x1 * -2.1 + y1 * 2.6 - uTime * 5.7 + 2.1);
-  float wave = max(w1, w2);
-  float glow = wave > 0.4 ? smoothstep(0.4, 1.0, wave) : 0.0;
+  // Travelling ripples on the sphere surface (aShell): many small, fairly fast
+  // waves of differing direction and speed interfere into a busy field of crests
+  // that sweep across and turn with the shell. Crests both BRIGHTEN and take a
+  // vivid iridescent tint while troughs dim to grey — the luminance undulation
+  // is what makes the wavelets read as moving.
+  vec3 shp = aShell;
+  float wave =
+      sin(shp.x * 7.0 + shp.y * 4.0 + uTime * 2.4)
+    + sin(shp.y * 8.5 - shp.z * 5.5 - uTime * 2.0 + 1.7)
+    + sin(shp.z * 7.5 + shp.x * 6.0 + uTime * 2.8 + 4.0)
+    + 0.8 * sin(shp.x * 12.0 - shp.z * 9.0 + uTime * 3.4 + 0.5);
+  wave *= 0.27; // ≈ [-0.9, 0.9]
   float flicker = 0.5 + 0.5 * sin(uTime * 6.5 + aMeta.y);
 
+  float crest = smoothstep(0.1, 0.85, wave);            // colored crest band
+  float lum = 0.5 + 0.5 * smoothstep(-0.7, 0.85, wave); // troughs ~0.5 .. crests 1
+
+  // Iridescent hue on the crests — a vivid cosine "rainbow" palette keyed off
+  // the wave value and surface position, so adjacent crests shimmer different
+  // colors. The same palette tints the Nuzzle wordmark (see theme.css).
+  float hue = wave * 0.7 + (shp.x - shp.y + shp.z) * 0.5 + uTime * 0.05;
+  vec3 irid = 0.5 + 0.5 * cos(6.28318 * (hue + vec3(0.0, 0.33, 0.67)));
+  vColor = mix(vec3(1.0), irid, crest * 0.9);
+  // Halo points lean white and bright, so the ring reads as a clean glow.
+  vColor = mix(vColor, vec3(1.0), halo * 0.7);
+
   float depthOpacity = min(0.44 + scale * 0.5, 1.0);
-  float size = clamp(scale * 0.66, 0.6, 1.1) * (1.0 + glow * 0.55);
+  // Incoming points (localT < 1) ride in a touch larger, settling to size as they
+  // join the shell, so the streaming swarm reads clearly.
+  float size = clamp(scale * 0.66, 0.6, 1.1) * (1.0 + crest * 0.45 + halo * 0.9 + (1.0 - localT) * 0.7);
 
-  float warm = glow * 0.85;
-  float peak = smoothstep(0.45, 1.0, glow) * 0.3;
-  float spark = max(0.0, flicker - 0.72) * 0.6;
-  vColor = mix(mix(mix(uSage, uHi, warm), uFox, peak), uCream, spark);
-
-  float baseLum = depthOpacity * (0.8 + 0.42 * flicker);
-  float alpha = min(max(baseLum, glow * 0.9), 1.0) * min(localT * 1.3, 1.0);
+  float baseLum = depthOpacity * lum * (0.85 + 0.2 * flicker);
+  // Ramp visibility quickly once a point launches (localT > 0), so it's bright
+  // for most of its flight rather than only after it has nearly arrived.
+  float alpha = min(max(baseLum, halo * 0.95), 1.0) * min(localT * 2.6, 1.0);
   if (uTextReveal > 0.0) {
     float ddx = (screenX - uCenter.x) / uDimR.x;
     float ddy = (screenY - uCenter.y) / uDimR.y;
     float radial = smoothstep(uDimInner, uDimOuter, sqrt(ddx * ddx + ddy * ddy));
     float dim = uTextDim + (1.0 - uTextDim) * radial;
-    alpha *= 1.0 - uTextReveal * (1.0 - dim);
+    // Halo points are exempt from the text dim so the model rings stay crisp.
+    alpha *= 1.0 - uTextReveal * (1.0 - dim) * (1.0 - halo);
   }
   vAlpha = alpha;
   gl_PointSize = size * 2.0 * uPixelRatio;
@@ -223,22 +278,6 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
       metaArr[i * 2 + 1] = rand() * Math.PI * 2;
     }
 
-    const rootStyle = getComputedStyle(document.documentElement);
-    const norm = (hex: string, fb: string): [number, number, number] => {
-      const [r, g, b] = hexToRgb(rootStyle.getPropertyValue(hex) || fb);
-      return [r / 255, g / 255, b / 255];
-    };
-    const sage = norm("--sage", "#7FA068");
-    const cream = norm("--cream", "#FFFBF2");
-    const gold = norm("--gold", "#E8C87A");
-    const fox = norm("--fox", "#D96A2C");
-    // Wave highlight: cream leaned halfway to gold — a warm amber glow.
-    const hi: [number, number, number] = [
-      lerp(cream[0], gold[0], 0.5),
-      lerp(cream[1], gold[1], 0.5),
-      lerp(cream[2], gold[2], 0.5),
-    ];
-
     const program = buildProgram(gl);
     if (!program) return;
     gl.useProgram(program);
@@ -267,7 +306,7 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
       intro: U("uIntro"), time: U("uTime"), pixelRatio: U("uPixelRatio"),
       yaw: U("uYaw"), pitch: U("uPitch"), cameraZ: U("uCameraZ"), scaleFactor: U("uScaleFactor"),
       viewport: U("uViewport"), center: U("uCenter"), mouse: U("uMouse"), dimR: U("uDimR"),
-      textReveal: U("uTextReveal"),
+      textReveal: U("uTextReveal"), converge: U("uConverge"), nodes: U("uNodes"),
     };
     // Constant uniforms — set once.
     gl.uniform1f(U("uIntroStagger"), INTRO_STAGGER);
@@ -276,10 +315,13 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
     gl.uniform1f(U("uTextDim"), TEXT_DIM);
     gl.uniform1f(U("uDimInner"), DIM_INNER);
     gl.uniform1f(U("uDimOuter"), DIM_OUTER);
-    gl.uniform3fv(U("uSage"), sage);
-    gl.uniform3fv(U("uHi"), hi);
-    gl.uniform3fv(U("uFox"), fox);
-    gl.uniform3fv(U("uCream"), cream);
+    gl.uniform1f(U("uHaloR"), HALO_RADIUS);
+    gl.uniform1f(U("uHaloInner"), HALO_INNER);
+    gl.uniform1f(U("uHaloPull"), HALO_PULL);
+
+    // Screen-space positions of the model nodes, refreshed each frame and fed to
+    // the shader for point convergence; reused for the DOM logo/halo placement.
+    const nodeArr = new Float32Array(BUBBLE_COUNT * 2);
 
     gl.enable(gl.BLEND);
     // Straight-alpha "over" into a transparent canvas (the CSS bg shows through).
@@ -390,6 +432,27 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
       const cy = height * lerp(SPHERE_CY_TOP, SPHERE_CY_ZOOM, smoothstep(0, 0.55, progress));
       const textReveal = smoothstep(0.8, 0.92, progress);
 
+      // Model-node ring geometry — used both for point convergence (shader) and
+      // the DOM logo/halo placement, so compute it once here.
+      const ringGrow = smoothstep(0.1, 0.92, progress);
+      let ringRx: number;
+      let ringRy: number;
+      if (isMobile) {
+        ringRx = ringRy = lerp(0.18 * width, 0.42 * width, ringGrow);
+      } else {
+        ringRx = width * lerp(RING_RX_TOP, RING_RX, ringGrow);
+        ringRy = height * lerp(RING_RY_TOP, RING_RY, ringGrow);
+      }
+      for (let k = 0; k < BUBBLE_COUNT; k++) {
+        const ang = -Math.PI / 2 + (2 * Math.PI * BUBBLE_SEEDS[k].ringIndex) / BUBBLE_COUNT + ringSpin;
+        nodeArr[k * 2] = cx + Math.cos(ang) * ringRx;
+        nodeArr[k * 2 + 1] = cy + Math.sin(ang) * ringRy;
+      }
+      // Convergence is a late event: the logos resolve as bare halos first, then
+      // in the last stretch of the zoom the field's points rush in to join them
+      // (the attraction effect). Starts well after the logo reveal (0.14–0.6).
+      const converge = smoothstep(0.78, 0.99, progress) * Math.min(intro * 1.4, 1);
+
       gl.uniform1f(u.intro, intro);
       gl.uniform1f(u.time, time);
       gl.uniform1f(u.pixelRatio, dpr);
@@ -402,39 +465,32 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
       gl.uniform2f(u.mouse, mouseX, mouseY);
       gl.uniform2f(u.dimR, width * DIM_RX, height * DIM_RY);
       gl.uniform1f(u.textReveal, textReveal);
+      gl.uniform1f(u.converge, converge);
+      gl.uniform2fv(u.nodes, nodeArr);
 
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.POINTS, 0, POINT_COUNT);
 
-      // Model-family bubbles (DOM) on a fixed screen-plane ring: invisible at the
-      // top (indistinguishable from the field), then fading in and growing into
-      // logos as the camera zooms. Only six elements — trivial on the main thread.
-      const ringGrow = smoothstep(0.1, 0.92, progress);
+      // Model-family logos (DOM) sit at the converged nodes: invisible at the top
+      // (indistinguishable from the field), then resolving at the centre of each
+      // point-halo as the camera zooms. Only six elements — trivial on the main
+      // thread; the surrounding glow is the converged field, not a disc.
       const reveal = smoothstep(0.14, 0.6, progress);
       const sizeGrow = smoothstep(0.18, 1, progress) ** 1.15;
       const bubbleScaleMax = isMobile ? 0.85 : BUBBLE_SCALE;
       const bScale = lerp(DOT_SCALE, bubbleScaleMax, sizeGrow);
-      let ringRx: number;
-      let ringRy: number;
-      if (isMobile) {
-        ringRx = ringRy = lerp(0.18 * width, 0.42 * width, ringGrow);
-      } else {
-        ringRx = width * lerp(RING_RX_TOP, RING_RX, ringGrow);
-        ringRy = height * lerp(RING_RY_TOP, RING_RY, ringGrow);
-      }
       const bubbleOpacity = Math.min(intro * 1.4, 1) * reveal;
-      // At the top of the page the bubbles are invisible (reveal ≈ 0) — exactly
+      // At the top of the page the logos are invisible (reveal ≈ 0) — exactly
       // where the mouse interaction happens. Skip all their DOM writes there
       // (hide once), so playing with the cursor touches nothing but uniforms.
       if (bubbleOpacity > 0.001) {
-        const bubbleFilter = `saturate(${lerp(0.35, 1, reveal).toFixed(3)}) brightness(${lerp(0.72, 1, reveal).toFixed(3)})`;
+        // Brand colour stays muted so the marks read as part of the monochrome
+        // field rather than full-saturation stickers.
+        const bubbleFilter = `saturate(${lerp(0.2, 0.62, reveal).toFixed(3)}) brightness(${lerp(0.8, 1.05, reveal).toFixed(3)})`;
         for (let k = 0; k < BUBBLE_COUNT; k++) {
           const el = bubbleRefs.current[k];
           if (!el) continue;
-          const ang = -Math.PI / 2 + (2 * Math.PI * BUBBLE_SEEDS[k].ringIndex) / BUBBLE_COUNT + ringSpin;
-          const sx = cx + Math.cos(ang) * ringRx;
-          const sy = cy + Math.sin(ang) * ringRy;
-          el.style.transform = `translate(${sx}px, ${sy}px) scale(${bScale})`;
+          el.style.transform = `translate(${nodeArr[k * 2]}px, ${nodeArr[k * 2 + 1]}px) scale(${bScale})`;
           el.style.opacity = String(bubbleOpacity);
           el.style.filter = bubbleFilter;
         }
@@ -492,21 +548,27 @@ export function PointCloud({ scrollProgress }: PointCloudProps) {
             ref={(el) => {
               bubbleRefs.current[k] = el;
             }}
-            className="absolute left-0 top-0 will-change-transform"
-            style={{ transformOrigin: "0 0", opacity: 0 }}
+            className="absolute left-0 top-0 flex items-center justify-center will-change-transform"
+            style={{
+              width: 64,
+              height: 64,
+              marginLeft: -32,
+              marginTop: -32,
+              transformOrigin: "0 0",
+              opacity: 0,
+            }}
           >
+            {/* Soft glow — a halo, not a disc; reads as the converged points
+                brightening, with no hard rim to clash with the field. */}
             <div
-              className="flex items-center justify-center rounded-full"
+              className="absolute inset-0 rounded-full"
               style={{
-                width: 56,
-                height: 56,
-                marginLeft: -28,
-                marginTop: -28,
-                background: seed.bg,
-                border: `1px solid ${seed.ring}`,
-                boxShadow: "0 8px 24px rgba(8, 15, 10, 0.45)",
+                background:
+                  "radial-gradient(circle, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.06) 42%, transparent 72%)",
               }}
-            >
+            />
+            {/* The mark itself, reduced and muted (filter applied per frame). */}
+            <div className="relative flex items-center justify-center" style={{ transform: "scale(0.78)" }}>
               <seed.Logo />
             </div>
           </div>

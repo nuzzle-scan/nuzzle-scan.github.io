@@ -3,17 +3,17 @@ import { FadeInUp } from "./shared";
 /** §04 — what the scanner does, the 4-step pipeline, and its limits. */
 export function MethodSection() {
   return (
-    <section id="method" className="border-t border-rule">
+    <section id="method" className="rule-irid-top">
       <div className="wrap py-20 md:py-28">
         <FadeInUp>
           <div className="grid gap-6 md:grid-cols-[200px_1fr] md:gap-12">
             <div>
-              <span className="font-sans text-xs uppercase tracking-[0.2em] text-muted">
+              <span className="font-sans text-xs uppercase tracking-[0.2em] text-irid">
                 § 04 · Method
               </span>
             </div>
             <div className="min-w-0">
-              <h2 className="font-display text-3xl font-semibold leading-tight text-green-deep md:text-4xl">
+              <h2 className="font-display text-3xl font-semibold leading-tight text-ink md:text-4xl">
                 What the scanner does.
               </h2>
               <p className="mt-4 max-w-[68ch] font-sans text-base leading-relaxed text-muted">
@@ -129,7 +129,7 @@ export function MethodSection() {
                 this model reproduces.
               </p>
 
-              <div className="mt-10 rounded-2xl border border-rule bg-bg-alt p-6 md:p-8">
+              <div className="box-irid mt-10 rounded-2xl bg-bg-alt p-6 md:p-8">
                 <h3 className="font-display text-lg font-semibold text-ink">
                   What this scanner does <em>not</em> do.
                 </h3>

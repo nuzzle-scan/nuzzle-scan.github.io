@@ -3,12 +3,12 @@ import { FadeInUp } from "./shared";
 /** §05 — three ways to run the scanner, all producing the same report.json. */
 export function ScanSection() {
   return (
-    <section id="scan" className="border-t border-rule">
+    <section id="scan" className="rule-irid-top">
       <div className="wrap py-20 md:py-28">
         <FadeInUp>
           <div className="grid gap-6 md:grid-cols-[200px_1fr] md:gap-12">
             <div>
-              <span className="font-sans text-xs uppercase tracking-[0.2em] text-muted">
+              <span className="font-sans text-xs uppercase tracking-[0.2em] text-irid">
                 § 05 · Scan your model
               </span>
             </div>

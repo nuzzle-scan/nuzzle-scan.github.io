@@ -1,12 +1,18 @@
 :root {
-  /* Light forest palette */
-  --bg: #F3EEDF;
-  --bg-alt: #EAE1CC;
-  --bg-deep: #080F0A;
-  --ink: #0E1F16;
-  --muted: #5E7350;
-  --fox: #D96A2C;
-  --fox-deep: #B5521E;
+  /* Dark neutral palette — coherent with the black, iridescent hero. The earlier
+     light "forest" palette and the fox/forest-green identity are retired; the
+     body now sits a hair above the hero's pure black so the hero reads deepest. */
+  --bg: #0C0D10;
+  --bg-alt: #15161B;
+  --bg-deep: #060608;
+  --ink: #F3EEDF;
+  --muted: #9A98A8;
+  /* Persistent interactive accent (legacy name "fox"): the fox/orange identity
+     is retired — these now hold the vivid violet used for section numbers, h3
+     sub-headings, accent links at rest and small glyphs. Hover accents are
+     random-iridescent (--hover-c); the wordmark uses its own gradient. */
+  --fox: #7C5CFF;
+  --fox-deep: #5B3FD6;
   --cream: #FFFBF2;
   --green-deep: #1C3A26;
   --green-mid: #2F5D3A;
@@ -15,24 +21,20 @@
   --amber: #E8832A;
   --rust: #C9501F;
   --brown: #5C4530;
-  --rule: rgba(14, 31, 22, 0.12);
-  --rule-strong: rgba(14, 31, 22, 0.22);
-  --hover: rgba(14, 31, 22, 0.05);
+  --rule: rgba(243, 238, 223, 0.12);
+  --rule-strong: rgba(243, 238, 223, 0.22);
+  --hover: rgba(243, 238, 223, 0.05);
   --risk-low: #7FB35E;
   --risk-med: #E0AE4A;
   --risk-high: #E07A36;
 
-  /* Atmospheric limb — the hero→document transition reads as a planet's
-     atmosphere seen from orbit: deep space (--bg-deep) easing down through
-     navy, azure and pale haze to the cream "surface" (--bg). */
-  --atmo-deep: #0A1A3A;
-  --atmo-blue: #21508C;
-  --atmo-cyan: #5798B2;
-  --atmo-haze: #C6D8D2;
-
   /* Hero forest scene keeps its own twilight gradient, independent of the
      page background (formerly --bg in the dark palette). */
   --scene-twilight: #0E1F16;
+
+  /* Hero point-cloud panel: a true neutral near-black (NOT the greenish
+     --bg-deep), so the white iridescent points read cleanly. */
+  --hero-bg: #060608;
 
   /* Typography */
   --display: "Fraunces", "Iowan Old Style", "Georgia", serif;
@@ -103,9 +105,12 @@
     text-decoration: none;
     border-bottom: 1px solid var(--rule-strong);
   }
+  /* Interactive accent: each link picks a fresh vivid iridescent color on hover
+     via the --hover-c custom property (set by useIridescentHover); --hover-c
+     falls back to a vivid violet so the accent is never orange even before JS. */
   a:hover {
-    border-bottom-color: var(--fox);
-    color: var(--fox);
+    border-bottom-color: var(--hover-c, var(--fox));
+    color: var(--hover-c, var(--fox));
   }
   a.plain {
     border-bottom: none;
@@ -115,7 +120,7 @@
     border-bottom: 1px solid color-mix(in oklch, var(--fox) 35%, transparent);
   }
   a.foxlink:hover {
-    border-bottom-color: var(--fox);
+    border-bottom-color: var(--hover-c, var(--fox));
   }
 
   /* Hero point-cloud panel sits on --bg-deep regardless of the page theme;
@@ -123,7 +128,7 @@
      --ink/--rule. (Custom tokens aren't wired into Tailwind's @theme, so
      this is plain CSS rather than bg-bg-deep/text-cream utilities.) */
   .hero-panel {
-    background: var(--bg-deep);
+    background: var(--hero-bg);
     color: var(--cream);
   }
   .hero-panel a {
@@ -131,11 +136,86 @@
     border-bottom-color: rgba(246, 239, 224, 0.25);
   }
   .hero-panel a:hover {
-    color: var(--fox);
-    border-bottom-color: var(--fox);
+    color: var(--hover-c, var(--fox));
+    border-bottom-color: var(--hover-c, var(--fox));
   }
   .hero-panel a.plain {
     border-bottom: none;
+  }
+
+  /* Iridescent Nuzzle wordmark — a fixed vertical (top→bottom) slice of the same
+     cosine "rainbow" that tints the hero point crests. Static: no animation, no
+     left-right sweep. */
+  .wordmark-irid {
+    background: linear-gradient(
+      to bottom,
+      #e24dc4 0%,
+      #6b5cf0 26%,
+      #2e9be8 52%,
+      #25d6a6 76%,
+      #e8c24a 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Iridescent accent text for small decorative labels (section eyebrows): a
+     fixed horizontal slice of the same rainbow. Reuses the wordmark idea at a
+     lower-key, left-to-right sweep. */
+  .text-irid {
+    background: linear-gradient(
+      90deg,
+      #e24dc4,
+      #6b5cf0,
+      #2e9be8,
+      #25d6a6,
+      #e8c24a
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Iridescent horizontal separator (section transitions): the top border is a
+     soft spectral line, fading to transparent at both ends so it reads as a glow
+     rather than a hard rule. */
+  .rule-irid-top {
+    border-top: 1px solid transparent;
+    border-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        #e24dc4 18%,
+        #6b5cf0 36%,
+        #2e9be8 52%,
+        #25d6a6 68%,
+        #e8c24a 84%,
+        transparent 100%
+      )
+      1;
+  }
+
+  /* Iridescent rounded border for boxed callouts (e.g. "what it does NOT do"):
+     a gradient ring drawn on a ::before and masked to the border only, so it
+     follows border-radius (which border-image cannot). */
+  .box-irid {
+    position: relative;
+  }
+  .box-irid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, #e24dc4, #6b5cf0, #2e9be8, #25d6a6, #e8c24a);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
   }
 
   .wrap {

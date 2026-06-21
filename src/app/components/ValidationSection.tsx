@@ -4,28 +4,42 @@ import { FadeInUp, RiskBar, StatusPill } from "./shared";
 export function ValidationSection() {
   return (
     <section id="validation">
-      {/* Atmospheric limb: the black star-field hero dissolves into the cream
-          document like a planet's atmosphere seen from orbit — deep space, navy,
-          azure, pale haze, then the cream "surface". Top stop matches the hero's
-          --bg-deep and the bottom matches the page --bg, so both ends are seamless. */}
+      {/* Hero → document seam. Both ends are now dark, so the old atmospheric
+          limb is gone: a short fade from the hero black to the page background,
+          crossed by a discreet iridescent veil (a soft glow + a thin spectral
+          line) that carries the hero's identity into the body. */}
       <div
         aria-hidden="true"
-        className="h-[42vh] w-full"
-        style={{
-          background:
-            "linear-gradient(to bottom, var(--bg-deep) 0%, var(--atmo-deep) 26%, var(--atmo-blue) 47%, var(--atmo-cyan) 64%, var(--atmo-haze) 82%, var(--bg) 100%)",
-        }}
-      />
+        className="relative h-[16vh] w-full overflow-hidden"
+        style={{ background: "linear-gradient(to bottom, var(--hero-bg) 0%, var(--bg) 100%)" }}
+      >
+        <div
+          className="absolute inset-x-0 top-1/2 h-28 -translate-y-1/2"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 0%, rgba(123,92,255,0.12) 30%, rgba(46,155,232,0.12) 50%, rgba(37,214,166,0.12) 70%, transparent 100%)",
+            filter: "blur(26px)",
+          }}
+        />
+        <div
+          className="absolute inset-x-0 top-1/2 h-px"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 0%, #e24dc4 22%, #6b5cf0 40%, #2e9be8 55%, #25d6a6 72%, transparent 100%)",
+            opacity: 0.45,
+          }}
+        />
+      </div>
       <div className="wrap py-20 md:py-28">
         <FadeInUp>
           <div className="grid gap-6 md:grid-cols-[200px_1fr] md:gap-12">
             <div>
-              <span className="font-sans text-xs uppercase tracking-[0.2em] text-muted">
+              <span className="font-sans text-xs uppercase tracking-[0.2em] text-irid">
                 § 02 · Validation
               </span>
             </div>
             <div className="min-w-0">
-              <h2 className="font-display text-3xl font-semibold leading-tight text-green-deep md:text-4xl">
+              <h2 className="font-display text-3xl font-semibold leading-tight text-ink md:text-4xl">
                 Ground truth: what does the scanner output on models with a known
                 backdoor?
               </h2>

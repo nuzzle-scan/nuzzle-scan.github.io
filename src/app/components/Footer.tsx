@@ -1,7 +1,7 @@
 /** §07 — About / Resources / Contact, base line. */
 export function Footer() {
   return (
-    <footer id="footer" className="border-t border-rule">
+    <footer id="footer" className="rule-irid-top">
       <div className="wrap py-16 md:py-20">
         <div className="grid gap-12 md:grid-cols-3">
           <div>

@@ -24,21 +24,33 @@ export function FadeInUp({ children, delay = 0 }: { children: ReactNode; delay?:
 }
 
 /**
- * Risk score (0–100): a low→med→high gradient track with a tick marking
- * this model's score, plus the tabular-nums value. Used in §02 and §03 —
- * never framed as a verdict.
+ * Risk score (0–100): a track filled proportionally to the score, with the
+ * tabular-nums value alongside. The iridescent fill (green→turquoise→blue→violet
+ * →red) is sized to the FULL track width and clipped to the fill, so the colour
+ * at the fill's end reflects the level — low scores end green, high scores reach
+ * red. Used in §02 and §03 — never a verdict.
  */
 export function RiskBar({ value }: { value: number }) {
+  const pct = Math.max(0, Math.min(100, value));
   return (
     <div className="flex items-center gap-3">
       <div
-        className="relative h-1.5 w-28 shrink-0 rounded-full"
-        style={{ background: "linear-gradient(90deg, var(--risk-low), var(--risk-med), var(--risk-high))" }}
+        className="relative h-1.5 w-28 shrink-0 overflow-hidden rounded-full"
+        style={{ background: "rgba(243, 238, 223, 0.10)" }}
+        role="meter"
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={100}
       >
-        <span
-          className="absolute top-0 h-full w-0.5 bg-ink"
-          style={{ left: `${value}%` }}
-          aria-hidden="true"
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{
+            width: `${pct}%`,
+            background:
+              "linear-gradient(90deg, #30e07a 0%, #25d6c0 26%, #2e9be8 52%, #7c5cff 76%, #ff4d6d 100%)",
+            backgroundSize: "7rem 100%",
+            backgroundRepeat: "no-repeat",
+          }}
         />
       </div>
       <span className="num text-sm text-ink">{value}</span>
@@ -49,7 +61,7 @@ export function RiskBar({ value }: { value: number }) {
 type StatusPillVariant = "poisoned" | "review";
 
 const STATUS_STYLES: Record<StatusPillVariant, { color: string; label: string }> = {
-  poisoned: { color: "var(--risk-high)", label: "POISONED" },
+  poisoned: { color: "#ff8a2b", label: "POISONED" },
   review: { color: "var(--muted)", label: "Re-scan in progress" },
 };
 

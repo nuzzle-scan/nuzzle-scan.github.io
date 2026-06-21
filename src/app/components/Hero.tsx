@@ -15,7 +15,7 @@ function HeroNav() {
   return (
     <div className="wrap pointer-events-auto flex flex-wrap items-center justify-between gap-4 py-6">
       <a href="#" className="plain" aria-label="Nuzzle">
-        <span className="font-display text-2xl font-semibold tracking-tight" style={{ color: "var(--fox)" }}>
+        <span className="wordmark-irid font-display text-2xl font-semibold tracking-tight">
           Nuzzle
         </span>
       </a>
@@ -80,31 +80,40 @@ export function Hero() {
     offset: ["start start", "end end"],
   });
 
+  // Compress every scroll-driven hero animation into the first HOLD_END of the
+  // scroll, then hold the finished frame for the remainder: once the zoom, the
+  // centred copy and the logo halos have all resolved, the image stays pinned
+  // for an extra beat of scrolling so the user actually sees the final state
+  // before the sticky releases into §02. The container is lengthened to match so
+  // the dolly keeps its original scroll speed (the hold is the added height).
+  const HOLD_END = 0.78;
+  const zoom = useTransform(scrollYProgress, [0, HOLD_END], [0, 1], { clamp: true });
+
   // Three explicit keyframes (not two): Motion's scroll-linked native animation
   // mirrors a two-point [0, 0.3] -> [a, b] range back up over [0.3, 1] instead
   // of holding the clamped end value, so the title would fade out then back in.
   // A flat third keyframe at 1 keeps it held past the dolly start.
-  const titleOpacity = useTransform(scrollYProgress, [0, 0.3, 1], [1, 0, 0]);
-  const titleScale = useTransform(scrollYProgress, [0, 0.3, 1], [1, 1.12, 1.12]);
-  const titleY = useTransform(scrollYProgress, [0, 0.3, 1], [0, -44, -44]);
+  const titleOpacity = useTransform(zoom, [0, 0.3, 1], [1, 0, 0]);
+  const titleScale = useTransform(zoom, [0, 0.3, 1], [1, 1.12, 1.12]);
+  const titleY = useTransform(zoom, [0, 0.3, 1], [0, -44, -44]);
 
-  const revealOpacity = useTransform(scrollYProgress, [0, 0.8, 0.9, 1], [0, 0, 1, 1]);
-  const revealY = useTransform(scrollYProgress, [0.6, 0.85, 1], [28, 0, 0]);
-  const revealScale = useTransform(scrollYProgress, [0.6, 0.85, 1], [0.96, 1, 1]);
+  const revealOpacity = useTransform(zoom, [0, 0.8, 0.9, 1], [0, 0, 1, 1]);
+  const revealY = useTransform(zoom, [0.6, 0.85, 1], [28, 0, 0]);
+  const revealScale = useTransform(zoom, [0.6, 0.85, 1], [0.96, 1, 1]);
   // The centred copy is interactive only once revealed. While it's invisible at
   // the top, leaving it pointer-events-auto means the cursor crosses these
   // (unseen) links as it plays over the sphere — firing over/out + :hover style
   // recalcs + React event processing on every move, which churns the GC and
   // hitches the animation. Gate pointer-events on the reveal.
-  const revealPointer = useTransform(scrollYProgress, (p) => (p > 0.85 ? "auto" : "none"));
+  const revealPointer = useTransform(zoom, (p) => (p > 0.85 ? "auto" : "none"));
 
   return (
     <section id="hero" className="hero-panel relative">
       {/* Scroll-driven point-cloud zoom — all viewports, motion-safe only.
           On <900px PointCloud uses a lighter field and finger-drag repulsion. */}
-      <div ref={containerRef} className="relative motion-reduce:hidden" style={{ height: "300vh" }}>
+      <div ref={containerRef} className="relative motion-reduce:hidden" style={{ height: "360vh" }}>
         <div className="sticky top-0 h-screen w-full overflow-hidden">
-          <PointCloud scrollProgress={scrollYProgress} />
+          <PointCloud scrollProgress={zoom} />
           {/* Pass pointer events through the empty areas to the canvas below
               (cursor repulsion / tilt); keep the nav itself clickable. */}
           <div className="pointer-events-none relative z-10 flex h-full flex-col">
