@@ -44,7 +44,7 @@ function HeroReveal() {
   return (
     <div className="mx-auto max-w-xl px-2 text-center min-[600px]:px-6">
       <p
-        className="mx-auto max-w-[54ch] font-display text-base leading-snug min-[600px]:text-xl min-[600px]:leading-relaxed"
+        className="mx-auto max-w-[20ch] font-display text-xl leading-snug min-[600px]:max-w-[24ch] min-[600px]:text-3xl min-[600px]:leading-snug"
         style={{ color: "var(--cream)" }}
       >
         An open-source scanner for behavioral backdoors in the Hugging Face
